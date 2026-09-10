@@ -1,0 +1,6 @@
+CPSC 223 — Data Structures and Programming Techniques
+Instructor office hours: Tue 2:00–4:00pm, AKW 000
+Lecture: Mon 10:30–11:45am, Davies Auditorium
+Problem Set 1 due Friday Sep 18, 2026 at 11:59pm.
+
+This is a Handsome Dan demo syllabus. Do not send it to an LLM during Demo Mode.
