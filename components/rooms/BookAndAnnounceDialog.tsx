@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { CalendarCheck } from "lucide-react";
-import { AutofillTimeslotButton } from "@/components/rooms/AutofillTimeslotButton";
 import { DebouncedSubmitButton } from "@/components/shared/DebouncedSubmitButton";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -34,8 +33,10 @@ import {
   setNotifyEmail,
 } from "@/lib/identity";
 import { announceJoin } from "@/lib/joinBanner";
+import { bookingsToday, HEAVY_BOOKING_THRESHOLD, recordBooking } from "@/lib/karma";
+import { readTune } from "@/lib/tune";
 import { useLibcalAvailability } from "@/lib/hooks/libcalAvailability";
-import { autofillHelperPath, selectionMessage, slotDeepLink, slotRequestForSpot, snapToGrid } from "@/lib/libcal";
+import { selectionMessage, slotDeepLink, slotRequestForSpot, snapToGrid } from "@/lib/libcal";
 import { failsProfanityCheck } from "@/lib/profanity";
 import { subscribeToCourses } from "@/lib/hooks/subscribe";
 import { findSpot, resolveBookingCapacity } from "@/lib/spots";
@@ -83,7 +84,8 @@ export function BookAndAnnounceDialog({
       setEmail((e) => e || getNotifyEmail());
       setCourse(defaultCourseCode || courses[0]?.courseCode || "custom");
       setStart(nextHourLocal());
-      setSeats(String(roomCapacity));
+      const preferred = readTune().preferredGroupSize;
+      setSeats(String(preferred ? Math.max(1, Math.min(roomCapacity, preferred)) : roomCapacity));
       setError("");
     }, 0);
     return () => window.clearTimeout(timer);
@@ -136,10 +138,9 @@ export function BookAndAnnounceDialog({
     setError("");
     persistDisplayName(name.trim());
 
-    // Open the LibCal grid synchronously so popup blockers allow it.
-    const target = slot
-      ? autofillHelperPath(slot.request)
-      : spot.bookingUrl;
+    // Open Yale's booking grid on the right day synchronously so popup
+    // blockers allow it. The user clicks the green slot themselves.
+    const target = slot?.url ?? spot.bookingUrl;
     if (target) window.open(target, "_blank", "noopener,noreferrer");
 
     try {
@@ -172,12 +173,18 @@ export function BookAndAnnounceDialog({
 
       const booking = result.booking;
       const notified = booking.notified;
+      const karma = recordBooking(booking.spotName);
+      const lastDelta = karma.events[0]?.delta ?? 0;
+      const karmaNote =
+        lastDelta < 0
+          ? ` · ${lastDelta} karma (heavy booking day)`
+          : " · +2 karma";
       announceJoin({
         title: `You booked ${booking.spotName}`,
         detail:
           notified && notified.recipients > 0
-            ? `${booking.courseCode} · ${booking.capacity} seat${booking.capacity === 1 ? "" : "s"} · emailed ${notified.recipients} classmate${notified.recipients === 1 ? "" : "s"}`
-            : `${booking.courseCode} · ${booking.capacity} seat${booking.capacity === 1 ? "" : "s"}`,
+            ? `${booking.courseCode} · ${booking.capacity} seat${booking.capacity === 1 ? "" : "s"} · emailed ${notified.recipients} classmate${notified.recipients === 1 ? "" : "s"}${karmaNote}`
+            : `${booking.courseCode} · ${booking.capacity} seat${booking.capacity === 1 ? "" : "s"}${karmaNote}`,
       });
 
       onOpenChange(false);
@@ -198,7 +205,7 @@ export function BookAndAnnounceDialog({
           </DialogTitle>
           <DialogDescription>
             {isRoom
-              ? "Opens the Yale booking page on the right day so Autofill can skip red booked cells and click the earliest green slot, then tells your class you have a room."
+              ? "Opens Yale's booking grid on the right day with the earliest open slot highlighted, then tells your class you have a room."
               : "Tells your class you will be here. No booking needed."}{" "}
             Classmates in {resolvedCourse || "your course"}
             {adjacent.length > 0
@@ -280,7 +287,7 @@ export function BookAndAnnounceDialog({
               <div className="flex flex-wrap items-center gap-2">
                 <Badge variant="secondary" className="gap-1.5 font-normal">
                   <CalendarCheck className="size-3" aria-hidden />
-                  Autofill timeslot
+                  Live availability
                 </Badge>
                 <code className="text-xs">{checkingSlot ? "Checking Yale…" : slot.message}</code>
               </div>
@@ -288,14 +295,9 @@ export function BookAndAnnounceDialog({
                 {checkingSlot
                   ? "Checking Yale for red (booked) vs green (open) cells…"
                   : slot.shifted
-                    ? `${slot.requestedMessage} is already booked. Autofill will click the earliest green start instead.`
-                    : "Autofill skips red booked cells and clicks the earliest green start. Leave the end-time dropdown alone so Yale keeps its default length."}
+                    ? `${slot.requestedMessage} is already booked on schedule.yale.edu. The earliest open slot is shown above; the announcement uses that time.`
+                    : "That slot shows as open on schedule.yale.edu right now. Book & announce opens the grid there; click the green cell to confirm."}
               </p>
-              <AutofillTimeslotButton
-                spotName={spot?.name ?? ""}
-                startIso={slot.request.startIso}
-                variant="outline"
-              />
             </div>
           ) : null}
 
@@ -317,6 +319,11 @@ export function BookAndAnnounceDialog({
 
           {ruling?.note ? (
             <p className="text-sm text-muted-foreground">{ruling.note}</p>
+          ) : null}
+          {bookingsToday() >= HEAVY_BOOKING_THRESHOLD ? (
+            <p className="text-xs text-muted-foreground">
+              This would be booking #{bookingsToday() + 1} today. Beyond {HEAVY_BOOKING_THRESHOLD} costs karma; release a room you are not using to earn it back.
+            </p>
           ) : null}
           {error ? <p className="text-sm text-destructive">{error}</p> : null}
         </div>

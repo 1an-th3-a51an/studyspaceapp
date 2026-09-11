@@ -10,6 +10,8 @@ import { resolveBookingCapacity } from "@/lib/spots";
 import type {
   BackendInfo,
   CourseSubscription,
+  PrivatePool,
+  PrivatePoolReason,
   QueueEntry,
   QueueSnapshot,
   RoomBooking,
@@ -25,6 +27,30 @@ const COL_POOLS = "study_pools";
 const COL_QUEUE = "queue_entries";
 const COL_BOOKINGS = "room_bookings";
 const COL_SUBSCRIPTIONS = "course_subscriptions";
+const COL_PRIVATE = "private_pools";
+
+/** Private pools expire this long after their start (or creation, if no start). */
+export const PRIVATE_POOL_TTL_MS = 6 * 60 * 60 * 1000;
+export const PRIVATE_POOL_NO_START_TTL_MS = 48 * 60 * 60 * 1000;
+
+export function normalizeNetId(value: unknown): string {
+  return typeof value === "string" ? value.trim().toLowerCase().slice(0, 32) : "";
+}
+
+export function privatePoolExpiry(input: { start?: string; createdAt: string }): string {
+  const startMs = input.start ? Date.parse(input.start) : NaN;
+  const base = Number.isNaN(startMs)
+    ? Date.parse(input.createdAt) + PRIVATE_POOL_NO_START_TTL_MS
+    : startMs + PRIVATE_POOL_TTL_MS;
+  return new Date(base).toISOString();
+}
+
+/** A private pool is visible to its host, its members, and anyone invited. */
+function canSeePrivatePool(pool: PrivatePool, deviceId: string, netId: string): boolean {
+  if (pool.hostDeviceId === deviceId) return true;
+  if (pool.members.some((m) => m.deviceId === deviceId)) return true;
+  return Boolean(netId) && pool.inviteeNetIds.includes(netId);
+}
 
 export type PoolOrigin = "demo" | "host" | "queue";
 
@@ -184,6 +210,37 @@ export type LiveStore = {
   }): Promise<{ courses: string[] }>;
   unsubscribe(input: { email: string }): Promise<{ removed: number }>;
   seedDemoPools(now: number): Promise<{ written: number; backend: BackendInfo["kind"] }>;
+  /** Host removes their own booking announcement (releasing the room). */
+  releaseBooking(input: {
+    deviceId: string;
+    bookingId: string;
+    courseCode: string;
+    now: number;
+  }): Promise<QueueSnapshot & { released: boolean }>;
+  /** Invite-only pools visible to this device / NetID. */
+  listPrivatePools(input: { deviceId: string; netId: string; now: number }): Promise<PrivatePool[]>;
+  createPrivatePool(input: {
+    deviceId: string;
+    displayName: string;
+    netId: string;
+    inviteeNetIds: string[];
+    reason: PrivatePoolReason;
+    note?: string;
+    courseCode?: string;
+    spotName?: string;
+    bookingUrl?: string;
+    start?: string;
+    now: number;
+  }): Promise<PrivatePool>;
+  respondPrivatePool(input: {
+    deviceId: string;
+    displayName: string;
+    netId: string;
+    poolId: string;
+    accept: boolean;
+    now: number;
+  }): Promise<PrivatePool>;
+  cancelPrivatePool(input: { deviceId: string; poolId: string; now: number }): Promise<{ removed: boolean }>;
 };
 
 type LocalState = {
@@ -191,6 +248,7 @@ type LocalState = {
   bookings: RoomBooking[];
   pools: PoolRecord[];
   subscriptions: CourseSubscription[];
+  privatePools: PrivatePool[];
 };
 
 /**
@@ -208,6 +266,7 @@ function normaliseState(input: Partial<LocalState> | null | undefined): LocalSta
     bookings: arrayOr<RoomBooking>(input?.bookings),
     pools: arrayOr<PoolRecord>(input?.pools),
     subscriptions: arrayOr<CourseSubscription>(input?.subscriptions),
+    privatePools: arrayOr<PrivatePool>(input?.privatePools),
   };
 }
 
@@ -228,7 +287,8 @@ function createLocalStore(): LiveStore {
       Array.isArray(value.queue) &&
       Array.isArray(value.bookings) &&
       Array.isArray(value.pools) &&
-      Array.isArray(value.subscriptions)
+      Array.isArray(value.subscriptions) &&
+      Array.isArray(value.privatePools)
     );
   }
 
@@ -269,7 +329,14 @@ function createLocalStore(): LiveStore {
       e.poolId ? livePoolIds.has(e.poolId) : now - Date.parse(e.lastSeenAt) < STALE_MS,
     );
     s.bookings = s.bookings.filter((b) => now - Date.parse(b.start) < BOOKING_TTL_MS);
-    if (before !== s.pools.length + s.queue.length + s.bookings.length) flush();
+    const privateBefore = s.privatePools.length;
+    s.privatePools = s.privatePools.filter((p) => Date.parse(p.expiresAt) > now);
+    if (
+      before !== s.pools.length + s.queue.length + s.bookings.length ||
+      privateBefore !== s.privatePools.length
+    ) {
+      flush();
+    }
   };
 
   const snapshot = async (courseCode: string, deviceId: string, now: number) => {
@@ -447,6 +514,69 @@ function createLocalStore(): LiveStore {
       if (written) flush();
       return { written, backend: backend.kind };
     },
+    async releaseBooking({ deviceId, bookingId, courseCode, now }) {
+      const s = state();
+      const found = s.bookings.find((b) => b.id === bookingId);
+      if (!found) throw new HttpError(404, "booking not found");
+      if (found.deviceId !== deviceId) throw new HttpError(403, "only the host can release");
+      s.bookings = s.bookings.filter((b) => b.id !== bookingId);
+      flush();
+      const code = normalizeCourseCode(courseCode || found.courseCode);
+      return { ...(await snapshot(code, deviceId, now)), released: true };
+    },
+    async listPrivatePools({ deviceId, netId, now }) {
+      return state().privatePools
+        .filter((p) => Date.parse(p.expiresAt) > now && canSeePrivatePool(p, deviceId, netId))
+        .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+    },
+    async createPrivatePool(input) {
+      const createdAt = new Date(input.now).toISOString();
+      const pool: PrivatePool = {
+        id: crypto.randomUUID(),
+        hostDeviceId: input.deviceId,
+        hostDisplayName: input.displayName,
+        hostNetId: input.netId,
+        reason: input.reason,
+        note: input.note,
+        courseCode: input.courseCode,
+        spotName: input.spotName,
+        bookingUrl: input.bookingUrl,
+        start: input.start,
+        inviteeNetIds: input.inviteeNetIds,
+        declinedNetIds: [],
+        members: [{ deviceId: input.deviceId, displayName: input.displayName, netId: input.netId }],
+        createdAt,
+        expiresAt: privatePoolExpiry({ start: input.start, createdAt }),
+      };
+      state().privatePools.unshift(pool);
+      flush();
+      return pool;
+    },
+    async respondPrivatePool({ deviceId, displayName, netId, poolId, accept }) {
+      const pool = state().privatePools.find((p) => p.id === poolId);
+      if (!pool) throw new HttpError(404, "private pool not found");
+      if (!pool.inviteeNetIds.includes(netId)) throw new HttpError(403, "not invited");
+      if (accept) {
+        pool.declinedNetIds = pool.declinedNetIds.filter((n) => n !== netId);
+        if (!pool.members.some((m) => m.deviceId === deviceId || m.netId === netId)) {
+          pool.members.push({ deviceId, displayName, netId });
+        }
+      } else {
+        pool.members = pool.members.filter((m) => m.netId !== netId && m.deviceId !== deviceId);
+        if (!pool.declinedNetIds.includes(netId)) pool.declinedNetIds.push(netId);
+      }
+      flush();
+      return pool;
+    },
+    async cancelPrivatePool({ deviceId, poolId }) {
+      const s = state();
+      const found = s.privatePools.find((p) => p.id === poolId);
+      if (!found) return { removed: false };
+      if (found.hostDeviceId !== deviceId) throw new HttpError(403, "only the host can cancel");
+      s.privatePools = s.privatePools.filter((p) => p.id !== poolId);
+      flush();
+      return { removed: true };
+    },
   };
 }
 
@@ -510,6 +640,40 @@ function asSubscription(data: DocumentData): CourseSubscription {
   };
 }
 
+function asPrivatePool(id: string, data: DocumentData): PrivatePool {
+  const strs = (v: unknown) => (Array.isArray(v) ? v.map(String) : []);
+  return {
+    id,
+    hostDeviceId: String(data.hostDeviceId ?? ""),
+    hostDisplayName: String(data.hostDisplayName ?? ""),
+    hostNetId: String(data.hostNetId ?? ""),
+    reason: (data.reason as PrivatePoolReason) ?? "other",
+    note: typeof data.note === "string" ? data.note : undefined,
+    courseCode: typeof data.courseCode === "string" ? data.courseCode : undefined,
+    spotName: typeof data.spotName === "string" ? data.spotName : undefined,
+    bookingUrl: typeof data.bookingUrl === "string" ? data.bookingUrl : undefined,
+    start: typeof data.start === "string" ? data.start : undefined,
+    inviteeNetIds: strs(data.inviteeNetIds),
+    declinedNetIds: strs(data.declinedNetIds),
+    members: Array.isArray(data.members)
+      ? data.members.map((m: { deviceId?: string; displayName?: string; netId?: string }) => ({
+          deviceId: String(m.deviceId ?? ""),
+          displayName: String(m.displayName ?? ""),
+          netId: String(m.netId ?? ""),
+        }))
+      : [],
+    createdAt: String(data.createdAt ?? ""),
+    expiresAt: String(data.expiresAt ?? ""),
+  };
+}
+
+/** Strip undefined so Firestore accepts the document. */
+function compact(value: Record<string, unknown>): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(value)) if (v !== undefined) out[k] = v;
+  return out;
+}
+
 /** Firestore document id for a subscription, so re-subscribing overwrites. */
 function subscriptionDocId(courseCode: string, email: string): string {
   return `${courseCode}__${email}`.replace(/\//g, "_");
@@ -527,10 +691,11 @@ function createFirestoreStore(): LiveStore {
   };
 
   const gc = async (now: number) => {
-    const [poolSnap, queueSnap, bookingSnap] = await Promise.all([
+    const [poolSnap, queueSnap, bookingSnap, privateSnap] = await Promise.all([
       db.collection(COL_POOLS).get(),
       db.collection(COL_QUEUE).get(),
       db.collection(COL_BOOKINGS).get(),
+      db.collection(COL_PRIVATE).get(),
     ]);
     const livePoolIds = new Set<string>();
     const batchDeletes: DocumentReference[] = [];
@@ -549,6 +714,10 @@ function createFirestoreStore(): LiveStore {
     for (const doc of bookingSnap.docs) {
       const booking = asBooking(doc.id, doc.data());
       if (now - Date.parse(booking.start) >= BOOKING_TTL_MS) batchDeletes.push(doc.ref);
+    }
+    for (const doc of privateSnap.docs) {
+      const pool = asPrivatePool(doc.id, doc.data());
+      if (!(Date.parse(pool.expiresAt) > now)) batchDeletes.push(doc.ref);
     }
     while (batchDeletes.length) {
       const chunk = batchDeletes.splice(0, 400);
@@ -816,6 +985,91 @@ function createFirestoreStore(): LiveStore {
       }
       if (written) await batch.commit();
       return { written, backend: backend.kind };
+    },
+    async releaseBooking({ deviceId, bookingId, courseCode, now }) {
+      const ref = db.collection(COL_BOOKINGS).doc(bookingId);
+      const snap = await ref.get();
+      if (!snap.exists) throw new HttpError(404, "booking not found");
+      const booking = asBooking(snap.id, snap.data()!);
+      if (booking.deviceId !== deviceId) throw new HttpError(403, "only the host can release");
+      await ref.delete();
+      const code = normalizeCourseCode(courseCode || booking.courseCode);
+      return { ...(await snapshot(code, deviceId, now)), released: true };
+    },
+    async listPrivatePools({ deviceId, netId, now }) {
+      const queries = [
+        db.collection(COL_PRIVATE).where("hostDeviceId", "==", deviceId).get(),
+        db.collection(COL_PRIVATE).where("memberDeviceIds", "array-contains", deviceId).get(),
+      ];
+      if (netId) {
+        queries.push(db.collection(COL_PRIVATE).where("inviteeNetIds", "array-contains", netId).get());
+      }
+      const snaps = await Promise.all(queries);
+      const byId = new Map<string, PrivatePool>();
+      for (const qs of snaps) {
+        for (const d of qs.docs) byId.set(d.id, asPrivatePool(d.id, d.data()));
+      }
+      return Array.from(byId.values())
+        .filter((p) => Date.parse(p.expiresAt) > now && canSeePrivatePool(p, deviceId, netId))
+        .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+    },
+    async createPrivatePool(input) {
+      const ref = db.collection(COL_PRIVATE).doc();
+      const createdAt = new Date(input.now).toISOString();
+      const pool: PrivatePool = {
+        id: ref.id,
+        hostDeviceId: input.deviceId,
+        hostDisplayName: input.displayName,
+        hostNetId: input.netId,
+        reason: input.reason,
+        note: input.note,
+        courseCode: input.courseCode,
+        spotName: input.spotName,
+        bookingUrl: input.bookingUrl,
+        start: input.start,
+        inviteeNetIds: input.inviteeNetIds,
+        declinedNetIds: [],
+        members: [{ deviceId: input.deviceId, displayName: input.displayName, netId: input.netId }],
+        createdAt,
+        expiresAt: privatePoolExpiry({ start: input.start, createdAt }),
+      };
+      const { id: _id, ...data } = pool;
+      void _id;
+      await ref.set(compact({ ...data, memberDeviceIds: [input.deviceId] }));
+      return pool;
+    },
+    async respondPrivatePool({ deviceId, displayName, netId, poolId, accept }) {
+      const ref = db.collection(COL_PRIVATE).doc(poolId);
+      return db.runTransaction(async (tx) => {
+        const snap = await tx.get(ref);
+        if (!snap.exists) throw new HttpError(404, "private pool not found");
+        const pool = asPrivatePool(snap.id, snap.data()!);
+        if (!pool.inviteeNetIds.includes(netId)) throw new HttpError(403, "not invited");
+        if (accept) {
+          pool.declinedNetIds = pool.declinedNetIds.filter((n) => n !== netId);
+          if (!pool.members.some((m) => m.deviceId === deviceId || m.netId === netId)) {
+            pool.members.push({ deviceId, displayName, netId });
+          }
+        } else {
+          pool.members = pool.members.filter((m) => m.netId !== netId && m.deviceId !== deviceId);
+          if (!pool.declinedNetIds.includes(netId)) pool.declinedNetIds.push(netId);
+        }
+        tx.update(ref, {
+          members: pool.members,
+          declinedNetIds: pool.declinedNetIds,
+          memberDeviceIds: pool.members.map((m) => m.deviceId),
+        });
+        return pool;
+      });
+    },
+    async cancelPrivatePool({ deviceId, poolId }) {
+      const ref = db.collection(COL_PRIVATE).doc(poolId);
+      const snap = await ref.get();
+      if (!snap.exists) return { removed: false };
+      const pool = asPrivatePool(snap.id, snap.data()!);
+      if (pool.hostDeviceId !== deviceId) throw new HttpError(403, "only the host can cancel");
+      await ref.delete();
+      return { removed: true };
     },
   };
 }

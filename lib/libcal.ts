@@ -27,9 +27,6 @@ export const LIBCAL_GRID_MINUTES = 15;
 
 export const YALE_SPACE_TIMEZONE = "America/New_York";
 
-/** Hash key written onto the Yale URL so the clicker can find the start. */
-export const LIBCAL_START_HASH = "studyspaceStart";
-
 export type SlotRequest = {
   /** ISO start requested by the host. */
   startIso: string;
@@ -217,7 +214,7 @@ export function selectionMessage(request: SlotRequest): string {
   return `${request.roomLabel}: ${time} ${p.weekday}, ${p.month} ${p.day}, ${p.year} until...`;
 }
 
-/** The URL that opens the room's grid on the requested day, with our start hash. */
+/** The URL that opens the room's grid on the requested day. */
 export function slotDeepLink(request: SlotRequest): string | undefined {
   const base =
     request.bookingUrl ??
@@ -227,7 +224,6 @@ export function slotDeepLink(request: SlotRequest): string | undefined {
   const date = yaleDateKey(request.startIso);
   const url = new URL(base);
   if (date) url.searchParams.set("date", date);
-  url.hash = `${LIBCAL_START_HASH}=${encodeURIComponent(snapToGrid(request.startIso))}`;
   return url.toString();
 }
 
@@ -247,128 +243,4 @@ export function slotRequestForSpot(
     gid: spot.libcalGid,
     bookingUrl: spot.bookingUrl,
   };
-}
-
-/**
- * Bookmarklet that, on schedule.yale.edu, clicks a green cell and never a red
- * booked one. Prefers `startIso`; if that cell is booked it takes the earliest
- * remaining green start. Leaves the end-time dropdown alone.
- *
- * FullCalendar ignores `element.click()`, so this synthesizes a pointer/mouse
- * sequence on the matching `a.s-lc-eq-avail`.
- */
-export function libcalBookmarklet(request: SlotRequest): string {
-  const iso = snapToGrid(request.startIso);
-  const time = yaleTimeLabel(iso);
-  const body = `(function(){
-var wantIso=${JSON.stringify(iso)};
-var wantTime=${JSON.stringify(time)};
-var HASH=${JSON.stringify(LIBCAL_START_HASH)};
-function pad(n){return n<10?'0'+n:''+n;}
-function readWant(){
-  try {
-    var fromHash=location.hash.match(new RegExp(HASH+'=([^&]+)'));
-    var iso=fromHash?decodeURIComponent(fromHash[1]):wantIso;
-    var d=new Date(iso);
-    if(!isNaN(+d)) return d;
-  } catch(e) {}
-  return new Date(wantIso);
-}
-function hourKey(label){
-  var m=String(label).toLowerCase().match(/(\\d{1,2}):(\\d{2})\\s*([ap]m)/);
-  if(!m) return '';
-  var h=+m[1]%12; if(m[3].indexOf('p')===0) h+=12; if(m[3].indexOf('a')===0&&+m[1]===12) h=0;
-  return h+':'+m[2];
-}
-function blocked(el){
-  return /s-lc-eq-checkout|s-lc-eq-period-booked|s-lc-eq-r-unavailable|s-lc-eq-r-padding|s-lc-eq-unavail/.test(el.className||'');
-}
-function slotDate(el, fallback){
-  var start=el.fcSeg&&el.fcSeg.eventRange&&el.fcSeg.eventRange.range&&el.fcSeg.eventRange.range.start;
-  if(start){ var d=new Date(start); if(!isNaN(+d)) return d; }
-  var t=el.getAttribute('title')||el.getAttribute('aria-label')||'';
-  var hk=hourKey(t);
-  if(!hk) return null;
-  var p=hk.split(':');
-  var out=new Date(fallback);
-  out.setHours(+p[0], +p[1], 0, 0);
-  return out;
-}
-function greens(){
-  return [].slice.call(document.querySelectorAll('a.s-lc-eq-avail')).filter(function(el){ return !blocked(el); });
-}
-function pickGreen(want){
-  var rows=greens().map(function(el){
-    var d=slotDate(el, want);
-    return d?{el:el, ms:+d}:null;
-  }).filter(Boolean).sort(function(a,b){ return a.ms-b.ms; });
-  if(!rows.length) return null;
-  var needed=+want;
-  var exact=rows.filter(function(r){ return Math.abs(r.ms-needed)<60000; })[0];
-  if(exact) return exact.el;
-  var after=rows.filter(function(r){ return r.ms>=needed-60000; })[0];
-  return (after||rows[0]).el;
-}
-function realClick(el){
-  el.scrollIntoView({block:'center',inline:'center'});
-  var r=el.getBoundingClientRect();
-  var x=r.left+r.width/2,y=r.top+r.height/2;
-  var o={bubbles:true,cancelable:true,view:window,clientX:x,clientY:y,pointerId:1,pointerType:'mouse',buttons:1};
-  el.dispatchEvent(new PointerEvent('pointerdown',o));
-  el.dispatchEvent(new MouseEvent('mousedown',o));
-  el.dispatchEvent(new PointerEvent('pointerup',o));
-  el.dispatchEvent(new MouseEvent('mouseup',o));
-  el.dispatchEvent(new MouseEvent('click',o));
-}
-function wellText(){
-  var w=document.querySelector('#s-lc-eq-bwell');
-  return w?String(w.innerText||w.textContent||'').toLowerCase():'';
-}
-function timeLabel(d){
-  var h=d.getHours(), m=pad(d.getMinutes()), ap=h>=12?'pm':'am';
-  h=h%12; if(!h) h=12;
-  return (h+':'+m+ap).toLowerCase();
-}
-function clearWrongPending(target){
-  var want=target?timeLabel(slotDate(target, readWant())||readWant()):wantTime.toLowerCase();
-  var text=wellText();
-  if(!text||text.indexOf(want)!==-1) return;
-  var btn=[].slice.call(document.querySelectorAll('button,a,[role="button"]')).filter(function(el){
-    return /remove pending booking/i.test(el.getAttribute('aria-label')||el.textContent||'');
-  })[0];
-  if(btn) realClick(btn);
-}
-function tryPick(attempt){
-  var want=readWant();
-  var match=pickGreen(want);
-  if(match){
-    clearWrongPending(match);
-    realClick(match);
-    return;
-  }
-  var nextBtn=document.querySelector('.fc-goToNextAvailable-button');
-  if(nextBtn && nextBtn.offsetParent!==null && attempt<12){
-    realClick(nextBtn);
-    setTimeout(function(){ tryPick(attempt+1); }, 700);
-    return;
-  }
-  if(attempt<20){ setTimeout(function(){ tryPick(attempt+1); }, 250); return; }
-  alert('No green (available) slot at or after '+wantTime+' — red cells are already booked.');
-}
-tryPick(0);
-})();`;
-  return `javascript:${encodeURIComponent(body)}`;
-}
-
-/** Path to the in-app Autofill helper, which opens Yale and hosts the bookmarklet. */
-export function autofillHelperPath(request: SlotRequest): string {
-  const params = new URLSearchParams({
-    start: snapToGrid(request.startIso),
-    label: request.roomLabel,
-  });
-  if (request.spaceId) params.set("space", String(request.spaceId));
-  if (request.lid) params.set("lid", String(request.lid));
-  if (request.gid) params.set("gid", String(request.gid));
-  if (request.bookingUrl) params.set("url", request.bookingUrl);
-  return `/rooms/autofill?${params.toString()}`;
 }

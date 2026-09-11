@@ -17,9 +17,9 @@
  * Course numbers are Yale College's four-digit catalog codes (S&DS 2380, not
  * 238). See README for how to import real data.
  */
-import { COURSE_GRAPH, GRAPH_PROVENANCE } from "@/lib/courseGraph";
+import { COURSE_GRAPH, courseTitle, GRAPH_PROVENANCE } from "@/lib/courseGraph";
 
-export type SimilarityReason = "equivalent" | "also-took";
+export type SimilarityReason = "equivalent" | "also-took" | "similar-title";
 
 export type SimilarCourse = {
   courseCode: string;
@@ -99,7 +99,78 @@ export function alsoTookCourses(courseCode: string): { courseCode: string; share
     .sort((a, b) => b.share - a.share);
 }
 
-/** Equivalents first, then co-enrollment by share. Never includes the course itself. */
+// ---- Lexical similarity over catalog titles ------------------------------
+//
+// Third signal: two courses whose titles say the same thing ("Introductory
+// Microeconomics" / "Intro Micro: Policy Applications") are close even when
+// the graph has no edge. Tokens are stemmed crudely and matched by prefix so
+// "micro" hits "microeconomics".
+
+const TITLE_STOPWORDS = new Set([
+  "the", "of", "and", "to", "in", "a", "an", "for", "on", "with", "from", "at",
+  "i", "ii", "iii", "iv", "v", "its", "into", "through", "via", "or", "by",
+  "seminar", "topics", "special", "selected", "readings", "tutorial", "lab",
+  "laboratory", "section", "independent", "directed", "senior", "junior",
+  "first-year", "freshman", "workshop", "practicum", "colloquium", "studies",
+  "study", "course", "courses",
+]);
+
+function titleTokens(title: string): string[] {
+  return title
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, " ")
+    .split(/\s+/)
+    .filter((t) => t.length >= 3 && !TITLE_STOPWORDS.has(t))
+    .map((t) => t.replace(/(ical|ics|ies|ing|ed|s)$/, (m) => (t.length - m.length >= 4 ? "" : m)));
+}
+
+function tokenMatch(a: string, b: string): boolean {
+  if (a === b) return true;
+  const short = a.length < b.length ? a : b;
+  const long = a.length < b.length ? b : a;
+  return short.length >= 5 && long.startsWith(short);
+}
+
+/** 0..1 overlap of meaningful title words. */
+export function titleSimilarity(a: string, b: string): number {
+  const ta = titleTokens(a);
+  const tb = titleTokens(b);
+  if (ta.length === 0 || tb.length === 0) return 0;
+  let hits = 0;
+  const used = new Set<number>();
+  for (const x of ta) {
+    const j = tb.findIndex((y, idx) => !used.has(idx) && tokenMatch(x, y));
+    if (j >= 0) {
+      used.add(j);
+      hits += 1;
+    }
+  }
+  return hits / Math.max(ta.length, tb.length);
+}
+
+const TITLE_MIN_SCORE = 0.5;
+
+/** Courses whose catalog title reads like this one's. */
+export function similarTitleCourses(
+  courseCode: string,
+  limit = 4,
+): { courseCode: string; title: string; score: number }[] {
+  const code = normalizeCourseCode(courseCode);
+  const mine = courseTitle(code);
+  if (!mine) return [];
+  const out: { courseCode: string; title: string; score: number }[] = [];
+  for (const [other, title] of Object.entries(COURSE_GRAPH.titles)) {
+    if (other === code || !title) continue;
+    const score = titleSimilarity(mine, title);
+    if (score >= TITLE_MIN_SCORE) out.push({ courseCode: other, title, score });
+  }
+  return out.sort((a, b) => b.score - a.score || a.courseCode.localeCompare(b.courseCode)).slice(0, limit);
+}
+
+/**
+ * Equivalents first, then co-enrollment by share, then lexical title matches.
+ * Never includes the course itself.
+ */
 export function similarCourses(courseCode: string, limit = 6): SimilarCourse[] {
   const code = normalizeCourseCode(courseCode);
   const out: SimilarCourse[] = [];
@@ -118,7 +189,11 @@ export function similarCourses(courseCode: string, limit = 6): SimilarCourse[] {
     }
   }
 
+  const titleMatches = similarTitleCourses(code, 3).filter((t) => !seen.has(t.courseCode));
+  // Leave room for a couple of title matches even when the graph is dense.
+  const alsoTookCap = Math.max(1, limit - Math.min(2, titleMatches.length));
   for (const { courseCode: c, share } of alsoTookCourses(code)) {
+    if (out.length >= alsoTookCap) break;
     if (seen.has(c)) continue;
     seen.add(c);
     out.push({
@@ -126,6 +201,17 @@ export function similarCourses(courseCode: string, limit = 6): SimilarCourse[] {
       reason: "also-took",
       weight: share,
       label: alsoTookLabel(code, share),
+    });
+  }
+
+  for (const t of titleMatches) {
+    if (seen.has(t.courseCode)) continue;
+    seen.add(t.courseCode);
+    out.push({
+      courseCode: t.courseCode,
+      reason: "similar-title",
+      weight: t.score * 0.9,
+      label: `Similar title: “${t.title}”`,
     });
   }
 

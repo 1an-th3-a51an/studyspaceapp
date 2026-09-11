@@ -20,7 +20,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
+import { estimateActivity } from "@/lib/activity";
 import { formatWhen } from "@/lib/format";
+import { readTune } from "@/lib/tune";
 import {
   DEFAULT_LANDMARK_ID,
   findBuilding,
@@ -106,6 +108,12 @@ export default function RoomsPage() {
       setRecurring(localStorage.getItem(STORAGE_KEYS.recurringAutobook) === "true");
       setOriginChoice(readJson<OriginChoice>(STORAGE_KEYS.origin, DEFAULT_ORIGIN));
       setNow(Date.now());
+      // Tune can prefill the search; the X in the box clears it.
+      const prefill = readTune().defaultQuery;
+      if (prefill) {
+        setQuery(prefill);
+        setSearching(true);
+      }
     }, 0);
     return () => window.clearTimeout(timer);
   }, []);
@@ -270,6 +278,13 @@ export default function RoomsPage() {
     const stepMs = LIBCAL_GRID_MINUTES * 60 * 1000;
     return new Date(Math.ceil(now / stepMs) * stepMs).toISOString();
   }, [now]);
+
+  // Estimated busyness per spot, recomputed when `now` is set on the client.
+  const activityByName = useMemo(() => {
+    if (!now) return new Map<string, ReturnType<typeof estimateActivity>>();
+    const at = new Date(now);
+    return new Map(allSpots.map((s) => [s.name, estimateActivity(s, at)]));
+  }, [allSpots, now]);
 
   function courseLabel(course: MyCourse): string {
     const where = pickCourseMeeting(meetings, course.courseCode, now)?.location;
@@ -446,6 +461,7 @@ export default function RoomsPage() {
             match={match}
             nextSlotIso={nextSlotIso}
             onBook={setBooking}
+            activity={activityByName.get(spot.name)}
           />
         ))}
       </div>

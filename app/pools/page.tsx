@@ -4,6 +4,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { BackendChip } from "@/components/pools/BackendChip";
 import { JoinHostPoolModal } from "@/components/pools/JoinHostPoolModal";
+import { KarmaCard } from "@/components/pools/KarmaCard";
+import { PrivatePools } from "@/components/pools/PrivatePools";
 import { LiveQueue } from "@/components/pools/LiveQueue";
 import { OpenBookings } from "@/components/pools/OpenBookings";
 import { PoolList } from "@/components/pools/PoolList";
@@ -30,6 +32,7 @@ import { normalizeCourseCode } from "@/lib/courseSimilarity";
 import { DEFAULT_COURSE_CODE } from "@/lib/demo/handsomeDan";
 import { setDisplayName } from "@/lib/identity";
 import { announceJoin } from "@/lib/joinBanner";
+import { awardKarma } from "@/lib/karma";
 import type { BackendInfo, StudyPool } from "@/lib/types";
 
 const CUSTOM = "__custom__";
@@ -216,6 +219,8 @@ export default function PoolsPage() {
         onSnapshot={queue.setSnapshot}
       />
       {queue.error ? <p className="text-sm text-destructive">{queue.error}</p> : null}
+      <PrivatePools courses={myCourses} defaultCourseCode={activeCourse} />
+      <KarmaCard />
       <PoolList
         pools={
           schedule.origin === "imported"
@@ -250,9 +255,10 @@ export default function PoolsPage() {
             hostDisplayName: displayName,
             targetGroupSize,
           });
+          awardKarma("pool-host", `Hosted a ${pool.courseCode} pool`);
           announceJoin({
             title: "You're hosting a study pool",
-            detail: `${pool.courseCode} · ${pool.memberCount} of ${pool.targetGroupSize} seats filled`,
+            detail: `${pool.courseCode} · ${pool.memberCount} of ${pool.targetGroupSize} seats filled · +5 karma`,
           });
           await refresh(activeCourse);
           bump();
@@ -260,9 +266,10 @@ export default function PoolsPage() {
         onJoin={async ({ displayName, pool }) => {
           setDisplayName(displayName);
           const result = await joinPool({ poolId: pool.id });
+          awardKarma("pool-join", `Joined ${result.pool.hostDisplayName}'s ${result.pool.courseCode} pool`);
           announceJoin({
             title: "You're in a study pool",
-            detail: `${result.pool.courseCode} · ${result.pool.memberCount} of ${result.pool.targetGroupSize} · hosted by ${result.pool.hostDisplayName}`,
+            detail: `${result.pool.courseCode} · ${result.pool.memberCount} of ${result.pool.targetGroupSize} · hosted by ${result.pool.hostDisplayName} · +3 karma`,
           });
           await refresh(activeCourse);
           bump();

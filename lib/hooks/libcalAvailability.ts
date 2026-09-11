@@ -37,43 +37,40 @@ export function useLibcalAvailability(request: SlotRequest | null): {
   availability: LibcalAvailabilityState | null;
   checking: boolean;
 } {
-  const [availability, setAvailability] = useState<LibcalAvailabilityState | null>(null);
-  const [checking, setChecking] = useState(false);
   const spaceId = request?.spaceId;
   const startIso = request?.startIso;
   const lid = request?.lid;
   const gid = request?.gid;
   const bookingUrl = request?.bookingUrl;
+  const roomLabel = request?.roomLabel ?? "";
+  const active = Boolean(startIso && (spaceId || bookingUrl));
+  // One key per distinct request; "checking" is derived from whether the
+  // latest resolved result belongs to the current key, so the effect never
+  // writes state synchronously.
+  const key = active ? [spaceId, startIso, lid, gid, bookingUrl].join("|") : "";
+  const [resolved, setResolved] = useState<{ key: string; result: LibcalAvailabilityState | null }>({
+    key: "",
+    result: null,
+  });
 
   useEffect(() => {
-    if (!startIso || (!spaceId && !bookingUrl)) {
-      setAvailability(null);
-      setChecking(false);
-      return;
-    }
+    if (!active || !startIso) return;
     let cancelled = false;
-    setChecking(true);
-    readAvailability({
-      startIso,
-      roomLabel: request?.roomLabel ?? "",
-      spaceId,
-      lid,
-      gid,
-      bookingUrl,
-    })
+    readAvailability({ startIso, roomLabel, spaceId, lid, gid, bookingUrl })
       .then((result) => {
-        if (!cancelled) setAvailability(result);
+        if (!cancelled) setResolved({ key, result });
       })
       .catch(() => {
-        if (!cancelled) setAvailability(null);
-      })
-      .finally(() => {
-        if (!cancelled) setChecking(false);
+        if (!cancelled) setResolved({ key, result: null });
       });
     return () => {
       cancelled = true;
     };
-  }, [spaceId, startIso, lid, gid, bookingUrl, request?.roomLabel]);
+  }, [active, key, spaceId, startIso, lid, gid, bookingUrl, roomLabel]);
 
-  return { availability, checking };
+  const current = active && resolved.key === key;
+  return {
+    availability: current ? resolved.result : null,
+    checking: active && !current,
+  };
 }

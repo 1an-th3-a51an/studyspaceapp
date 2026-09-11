@@ -100,7 +100,15 @@ export function SimilarCoursePools({
             >
               {row.courseCode}
             </button>
-            <Badge variant={row.reason === "equivalent" ? "default" : "secondary"}>
+            <Badge
+              variant={
+                row.reason === "equivalent"
+                  ? "default"
+                  : row.reason === "similar-title"
+                    ? "outline"
+                    : "secondary"
+              }
+            >
               {row.label}
             </Badge>
           </div>

@@ -126,6 +126,18 @@ export async function POST(request: Request): Promise<Response> {
           }),
         );
       }
+      case "release": {
+        const bookingId = typeof body.bookingId === "string" ? body.bookingId : "";
+        if (!bookingId) return json({ error: "bookingId required" }, 400);
+        return json(
+          await store.releaseBooking({
+            deviceId,
+            bookingId,
+            courseCode: body.courseCode ?? "",
+            now,
+          }),
+        );
+      }
       default:
         return json({ error: "unknown action" }, 400);
     }

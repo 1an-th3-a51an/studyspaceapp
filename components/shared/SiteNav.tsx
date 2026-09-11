@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { KarmaBadge } from "@/components/shared/KarmaBadge";
 import { cn } from "@/lib/utils";
 
 const LINKS = [
@@ -10,6 +11,7 @@ const LINKS = [
   { href: "/schedule", label: "Schedule" },
   { href: "/pools", label: "Pools" },
   { href: "/rooms", label: "Rooms" },
+  { href: "/tune", label: "Tune" },
 ];
 
 export function SiteNav() {
@@ -42,6 +44,9 @@ export function SiteNav() {
               </Link>
             );
           })}
+          <span className="ml-1">
+            <KarmaBadge />
+          </span>
         </nav>
       </div>
     </header>

@@ -157,3 +157,48 @@ export type QueueSnapshot = {
   /** Bookings for this course and adjacent ones; `via` explains adjacency. */
   bookings: (RoomBooking & { via?: string })[];
 };
+
+/** Why someone wants a private pool. "writing-tutor" is the common campus case. */
+export type PrivatePoolReason =
+  | "writing-tutor"
+  | "writing-partner"
+  | "problem-set"
+  | "project"
+  | "other";
+
+export const PRIVATE_POOL_REASONS: { value: PrivatePoolReason; label: string }[] = [
+  { value: "writing-tutor", label: "Writing tutor program" },
+  { value: "writing-partner", label: "Writing partner" },
+  { value: "problem-set", label: "Problem set" },
+  { value: "project", label: "Project meeting" },
+  { value: "other", label: "Other" },
+];
+
+export type PrivatePoolMember = {
+  deviceId: string;
+  displayName: string;
+  netId: string;
+};
+
+/**
+ * An invite-only pool. Visible only to the host and the NetIDs invited.
+ * Nothing about it appears on the public course lists.
+ */
+export type PrivatePool = {
+  id: string;
+  hostDeviceId: string;
+  hostDisplayName: string;
+  hostNetId: string;
+  reason: PrivatePoolReason;
+  note?: string;
+  courseCode?: string;
+  spotName?: string;
+  bookingUrl?: string;
+  /** ISO; when the session is meant to start. */
+  start?: string;
+  inviteeNetIds: string[];
+  declinedNetIds: string[];
+  members: PrivatePoolMember[];
+  createdAt: string; // ISO
+  expiresAt: string; // ISO
+};

@@ -1,14 +1,15 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { BellRing, CalendarClock, ExternalLink, MapPin } from "lucide-react";
+import { BellRing, CalendarClock, DoorOpen, ExternalLink, MapPin } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DebouncedSubmitButton } from "@/components/shared/DebouncedSubmitButton";
 import { formatWhen } from "@/lib/format";
-import { joinBooking } from "@/lib/hooks/queue";
+import { joinBooking, releaseBooking } from "@/lib/hooks/queue";
 import { ensureDeviceId, getDisplayName } from "@/lib/identity";
 import { announceJoin } from "@/lib/joinBanner";
+import { awardKarma } from "@/lib/karma";
 import type { QueueSnapshot } from "@/lib/types";
 
 export function OpenBookings({
@@ -117,9 +118,10 @@ export function OpenBookings({
                           courseCode,
                         });
                         onSnapshot(next);
+                        awardKarma("booking-join", `Joined ${next.booking.hostDisplayName} at ${next.booking.spotName}`);
                         announceJoin({
                           title: `You're in at ${next.booking.spotName}`,
-                          detail: `${next.booking.courseCode} · ${next.booking.members.length} of ${next.booking.capacity} · ${formatWhen(next.booking.start)}`,
+                          detail: `${next.booking.courseCode} · ${next.booking.members.length} of ${next.booking.capacity} · ${formatWhen(next.booking.start)} · +2 karma`,
                         });
                       } catch (caught) {
                         setError(caught instanceof Error ? caught.message : "Join failed");
@@ -136,6 +138,30 @@ export function OpenBookings({
                       Room page
                     </a>
                   </Button>
+                ) : null}
+                {b.deviceId === deviceId ? (
+                  <DebouncedSubmitButton
+                    size="sm"
+                    variant="ghost"
+                    title="Not using it after all? Release it so classmates stop planning around it. Earns karma."
+                    onSubmit={async () => {
+                      setError("");
+                      try {
+                        const next = await releaseBooking({ bookingId: b.id, courseCode });
+                        onSnapshot(next);
+                        awardKarma("booking-release", `Released ${b.spotName}`);
+                        announceJoin({
+                          title: `Released ${b.spotName}`,
+                          detail: "Thanks for freeing it up · +6 karma",
+                        });
+                      } catch (caught) {
+                        setError(caught instanceof Error ? caught.message : "Release failed");
+                      }
+                    }}
+                  >
+                    <DoorOpen className="size-3.5" />
+                    Release room
+                  </DebouncedSubmitButton>
                 ) : null}
               </div>
             </li>

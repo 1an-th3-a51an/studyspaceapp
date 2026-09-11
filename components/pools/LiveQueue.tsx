@@ -17,6 +17,8 @@ import {
 import { joinQueue, leaveQueue } from "@/lib/hooks/queue";
 import { getDisplayName, setDisplayName as persistDisplayName } from "@/lib/identity";
 import { announceJoin } from "@/lib/joinBanner";
+import { awardKarma } from "@/lib/karma";
+import { readTune } from "@/lib/tune";
 import { failsProfanityCheck } from "@/lib/profanity";
 import type { QueueSnapshot } from "@/lib/types";
 
@@ -32,7 +34,10 @@ export function LiveQueue({
   onSnapshot: (next: QueueSnapshot) => void;
 }) {
   const [name, setName] = useState(() => getDisplayName());
-  const [size, setSize] = useState("3");
+  const [size, setSize] = useState(() => {
+    const preferred = readTune().preferredGroupSize;
+    return String(preferred && preferred >= 2 ? Math.min(6, preferred) : 3);
+  });
   const [error, setError] = useState("");
 
   const waiting = (snapshot?.queue ?? []).filter((e) => !e.poolId);
@@ -57,9 +62,10 @@ export function LiveQueue({
       return;
     }
     if (id && id !== lastPoolId.current.id && myPool) {
+      awardKarma("queue-match", `Matched into a ${myPool.courseCode} pool`);
       announceJoin({
         title: "Matched into a study pool",
-        detail: `${myPool.courseCode} · ${myPool.memberCount} of ${myPool.targetGroupSize} · hosted by ${myPool.hostDisplayName}`,
+        detail: `${myPool.courseCode} · ${myPool.memberCount} of ${myPool.targetGroupSize} · hosted by ${myPool.hostDisplayName} · +4 karma`,
       });
     }
     lastPoolId.current.id = id;
