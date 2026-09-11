@@ -1,4 +1,5 @@
 import { MapPin, Megaphone, Navigation } from "lucide-react";
+import { AutofillTimeslotButton } from "@/components/rooms/AutofillTimeslotButton";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -10,7 +11,9 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { formatDistance } from "@/lib/geo";
+import { selectionMessage, slotRequestForSpot } from "@/lib/libcal";
 import type { RankedSpot } from "@/lib/recommendations";
+import { findSpot } from "@/lib/spots";
 
 export type CardMatch = {
   /** 0..1 relative similarity to the search query. */
@@ -25,6 +28,7 @@ export function RecommendationCard({
   recurring,
   originLabel,
   match,
+  nextSlotIso,
   onBook,
 }: {
   recommendation: RankedSpot;
@@ -32,6 +36,11 @@ export function RecommendationCard({
   recurring: boolean;
   originLabel?: string;
   match?: CardMatch;
+  /**
+   * The slot "Autofill timeslot" should target, as an ISO string. Computed on
+   * the client by the page so the server and first client render agree.
+   */
+  nextSlotIso?: string;
   /** Book (or meet) here and announce it to classmates. */
   onBook?: (spot: RankedSpot) => void;
 }) {
@@ -39,6 +48,18 @@ export function RecommendationCard({
   const distance =
     typeof recommendation.distanceMeters === "number"
       ? formatDistance(recommendation.distanceMeters)
+      : null;
+
+  // "Autofill timeslot" used to be a bare link to the room page, which landed
+  // on whatever day LibCal felt like. Anchor it on the next half-hour instead,
+  // and name the block the user is looking for.
+  const registrySpot = findSpot(recommendation.name);
+  const slot =
+    registrySpot?.bookingUrl && nextSlotIso
+      ? (() => {
+          const request = slotRequestForSpot(registrySpot, nextSlotIso);
+          return { message: selectionMessage(request) };
+        })()
       : null;
 
   return (
@@ -92,6 +113,12 @@ export function RecommendationCard({
         )}
         {recurring ? <p>Recurring autobook checked (UI only).</p> : null}
         {!url ? <p>No booking page for this spot. Just walk over and announce it.</p> : null}
+        {slot ? (
+          <p className="text-xs">
+            Autofill skips red booked cells and opens Yale&apos;s grid for{" "}
+            <code className="text-[0.7rem]">{slot.message}</code>
+          </p>
+        ) : null}
       </CardContent>
       <CardFooter className="flex-wrap gap-2">
         {recommendation.directionsUrl ? (
@@ -113,15 +140,8 @@ export function RecommendationCard({
           </Button>
         ) : null}
         {url ? (
-          <Button size="sm" variant={onBook ? "outline" : "default"} asChild>
-            <a href={url} target="_blank" rel="noopener noreferrer">
-              Autofill timeslot
-            </a>
-          </Button>
+          <AutofillTimeslotButton spotName={recommendation.name} startIso={nextSlotIso} />
         ) : null}
-        <Button size="sm" variant="outline" disabled>
-          Autobook — hook pending
-        </Button>
       </CardFooter>
     </Card>
   );

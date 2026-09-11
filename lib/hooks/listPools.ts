@@ -1,106 +1,58 @@
-import { DEMO_POOLS } from "@/lib/demo/handsomeDan";
-import * as firebasePools from "@/lib/firebase/pools";
-import {
-  ensureDeviceId,
-  readJson,
-  STORAGE_KEYS,
-  writeJson,
-} from "@/lib/identity";
-import type { StudyPool } from "@/lib/types";
+import { ensureDeviceId } from "@/lib/identity";
+import type { BackendInfo, StudyPool } from "@/lib/types";
 
-function isNotWired(error: unknown): boolean {
-  return error instanceof Error && error.message === "Seed DB not wired";
+async function readError(res: Response): Promise<string> {
+  try {
+    const payload = (await res.json()) as { error?: string };
+    if (payload.error) return payload.error;
+  } catch {
+    /* fall through */
+  }
+  return `Pools API failed (${res.status})`;
 }
 
-function mergeById(groups: StudyPool[][]): StudyPool[] {
-  const byId = new Map<string, StudyPool>();
-  for (const group of groups) {
-    for (const pool of group) byId.set(pool.id, pool);
-  }
-  return Array.from(byId.values());
+async function post<T>(body: Record<string, unknown>): Promise<T> {
+  const res = await fetch("/api/pools", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ deviceId: ensureDeviceId(), ...body }),
+  });
+  if (!res.ok) throw new Error(await readError(res));
+  return (await res.json()) as T;
 }
 
 export async function listPoolsByCourseCode(courseCode: string): Promise<{
   pools: StudyPool[];
-  wired: boolean;
+  backend: BackendInfo | null;
 }> {
-  const local = readJson<StudyPool[]>(STORAGE_KEYS.localPools, []).filter(
-    (pool) => pool.courseCode.toUpperCase() === courseCode.toUpperCase(),
-  );
-  const demo = DEMO_POOLS.filter(
-    (pool) => pool.courseCode.toUpperCase() === courseCode.toUpperCase(),
-  );
-
-  try {
-    const remote = await firebasePools.listPoolsByCourseCode(courseCode);
-    return { pools: mergeById([demo, local, remote]), wired: true };
-  } catch (error) {
-    if (isNotWired(error)) {
-      return { pools: mergeById([demo, local]), wired: false };
-    }
-    throw error;
-  }
+  const params = new URLSearchParams({ courseCode });
+  const res = await fetch(`/api/pools?${params.toString()}`, { cache: "no-store" });
+  if (!res.ok) throw new Error(await readError(res));
+  const payload = (await res.json()) as { pools?: StudyPool[]; backend?: BackendInfo };
+  return {
+    pools: payload.pools ?? [],
+    backend: payload.backend ?? null,
+  };
 }
 
 export async function hostPool(input: {
   courseCode: string;
   hostDisplayName: string;
   targetGroupSize: 1 | 2 | 3 | 4;
-}): Promise<{ pool: StudyPool; wired: boolean }> {
-  const deviceId = ensureDeviceId();
-  try {
-    const pool = await firebasePools.hostPool({ deviceId, ...input });
-    return { pool, wired: true };
-  } catch (error) {
-    if (!isNotWired(error)) throw error;
-    const pool: StudyPool = {
-      id: crypto.randomUUID(),
-      courseCode: input.courseCode,
-      hostDisplayName: input.hostDisplayName,
-      targetGroupSize: input.targetGroupSize,
-      memberCount: 1,
-      isDemoSample: false,
-      createdAt: new Date().toISOString(),
-    };
-    const existing = readJson<StudyPool[]>(STORAGE_KEYS.localPools, []);
-    writeJson(STORAGE_KEYS.localPools, mergeById([existing, [pool]]));
-    return { pool, wired: false };
-  }
+}): Promise<{ pool: StudyPool; backend: BackendInfo | null }> {
+  const payload = await post<{ pool: StudyPool; backend?: BackendInfo }>({
+    action: "host",
+    ...input,
+  });
+  return { pool: payload.pool, backend: payload.backend ?? null };
 }
 
 export async function joinPool(input: {
   poolId: string;
-}): Promise<{ pool: StudyPool; wired: boolean }> {
-  const deviceId = ensureDeviceId();
-  try {
-    const pool = await firebasePools.joinPool({ deviceId, poolId: input.poolId });
-    return { pool, wired: true };
-  } catch (error) {
-    if (!isNotWired(error)) throw error;
-    const existing = readJson<StudyPool[]>(STORAGE_KEYS.localPools, []);
-    const localIndex = existing.findIndex((pool) => pool.id === input.poolId);
-    if (localIndex >= 0) {
-      const current = existing[localIndex];
-      if (current.memberCount >= current.targetGroupSize) {
-        throw new Error("pool full");
-      }
-      const next = { ...current, memberCount: current.memberCount + 1 };
-      const withoutDuplicates = existing.filter(
-        (pool) => pool.id !== input.poolId,
-      );
-      writeJson(
-        STORAGE_KEYS.localPools,
-        mergeById([withoutDuplicates, [next]]),
-      );
-      return { pool: next, wired: false };
-    }
-    const demo = DEMO_POOLS.find((pool) => pool.id === input.poolId);
-    if (!demo) throw new Error("pool not found");
-    if (demo.memberCount >= demo.targetGroupSize) {
-      throw new Error("pool full");
-    }
-    const joined = { ...demo, memberCount: demo.memberCount + 1, isDemoSample: true };
-    writeJson(STORAGE_KEYS.localPools, mergeById([existing, [joined]]));
-    return { pool: joined, wired: false };
-  }
+}): Promise<{ pool: StudyPool; backend: BackendInfo | null }> {
+  const payload = await post<{ pool: StudyPool; backend?: BackendInfo }>({
+    action: "join",
+    poolId: input.poolId,
+  });
+  return { pool: payload.pool, backend: payload.backend ?? null };
 }

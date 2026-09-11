@@ -14,7 +14,9 @@ export type Building = {
 export type OriginChoice =
   | { kind: "next-class" }
   | { kind: "gps" }
-  | { kind: "landmark"; id: string };
+  | { kind: "landmark"; id: string }
+  /** Search from where one specific course on the user's schedule meets. */
+  | { kind: "course"; courseCode: string };
 
 export type ResolvedOrigin = {
   label: string;
@@ -49,6 +51,20 @@ export const BUILDINGS: Building[] = [
     address: "320 York St",
     point: { lat: 41.3117, lng: -72.9306 },
     aliases: ["hq", "humanities quad"],
+  },
+  {
+    id: "yuag",
+    name: "Yale University Art Gallery",
+    address: "1111 Chapel St",
+    point: { lat: 41.3084, lng: -72.9309 },
+    aliases: ["yuag", "art gallery"],
+  },
+  {
+    id: "17-hillhouse",
+    name: "17 Hillhouse Avenue",
+    address: "17 Hillhouse Ave",
+    point: { lat: 41.31415, lng: -72.92335 },
+    aliases: ["17 hillhouse"],
   },
   {
     id: "akw",
@@ -136,6 +152,7 @@ export const LANDMARK_IDS = [
   "sterling",
   "davies",
   "hq",
+  "yuag",
   "kbt",
 ] as const;
 

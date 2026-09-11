@@ -24,6 +24,12 @@
 .DS_Store
 *.pem
 
+# local backend snapshot written by lib/server/persistence.ts
+/.data
+
+# CourseTable public catalog dumps (several MB); the derived graph is committed
+/scripts/fixtures/catalog-20*.json
+
 # debug
 npm-debug.log*
 yarn-debug.log*
