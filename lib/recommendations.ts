@@ -8,7 +8,7 @@ import {
 } from "@/lib/geo";
 import type { RoomPrefs, StudyRecommendation } from "@/lib/types";
 
-const YALE_ROOM_URL = "https://schedule.yale.edu/space/36623";
+const YALE_ROOM_URL = "https://schedule.yale.edu/space/113265";
 
 export type RankedSpot = StudyRecommendation & {
   directionsUrl?: string;
@@ -62,9 +62,10 @@ export function recommendSpaces(
     rooms[0] ??
     ({
       kind: "room",
-      name: "Bass Library Group Study",
-      walkingMinutes: 6,
+      name: "Bass Library Group Study L30A",
+      walkingMinutes: 4,
       bookingUrl: YALE_ROOM_URL,
+      capacity: 6,
     } satisfies StudyRecommendation);
 
   const coffeeBudget = nearestRoom.walkingMinutes + prefs.maxExtraWalkingMinutes;

@@ -17,11 +17,12 @@ import {
 import { useQueuePolling } from "@/lib/hooks/queue";
 import { seedDb } from "@/lib/hooks/seedDb";
 import { normalizeCourseCode } from "@/lib/courseSimilarity";
+import { DEFAULT_COURSE_CODE } from "@/lib/demo/handsomeDan";
 import { setDisplayName } from "@/lib/identity";
 import type { StudyPool } from "@/lib/types";
 
 export default function PoolsPage() {
-  const [courseCode, setCourseCode] = useState("CPSC 223");
+  const [courseCode, setCourseCode] = useState(DEFAULT_COURSE_CODE);
   const [pools, setPools] = useState<StudyPool[]>([]);
   const [wired, setWired] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
@@ -29,11 +30,11 @@ export default function PoolsPage() {
   const [error, setError] = useState("");
   const [seedMessage, setSeedMessage] = useState("");
   const [refreshKey, setRefreshKey] = useState(0);
-  const normalizedCourse = normalizeCourseCode(courseCode.trim() || "CPSC 223");
+  const normalizedCourse = normalizeCourseCode(courseCode.trim() || DEFAULT_COURSE_CODE);
   const queue = useQueuePolling(normalizedCourse);
 
   const refresh = useCallback(async (code: string) => {
-    const result = await listPoolsByCourseCode(code.trim() || "CPSC 223");
+    const result = await listPoolsByCourseCode(code.trim() || DEFAULT_COURSE_CODE);
     setPools(result.pools);
     setWired(result.wired);
   }, []);
@@ -41,7 +42,7 @@ export default function PoolsPage() {
   // Similar-course pools refetch only after something changed (seed/host/join).
   const bump = () => setRefreshKey((k) => k + 1);
 
-  // Deep link from the Rooms page: /pools?course=MATH%20225
+  // Deep link from the Rooms page: /pools?course=S%26DS%202380
   useEffect(() => {
     const fromUrl = new URLSearchParams(window.location.search).get("course");
     if (!fromUrl) return;
@@ -72,7 +73,7 @@ export default function PoolsPage() {
             id="course-code"
             value={courseCode}
             onChange={(event) => setCourseCode(event.target.value.toUpperCase())}
-            placeholder="CPSC 223"
+            placeholder={DEFAULT_COURSE_CODE}
             className="max-w-xs"
           />
         </div>
@@ -145,12 +146,12 @@ export default function PoolsPage() {
       <JoinHostPoolModal
         open={modalOpen}
         onOpenChange={setModalOpen}
-        courseCode={selected?.courseCode ?? (courseCode.trim() || "CPSC 223")}
+        courseCode={selected?.courseCode ?? (courseCode.trim() || DEFAULT_COURSE_CODE)}
         selectedPool={selected}
         onHost={async ({ displayName, targetGroupSize }) => {
           setDisplayName(displayName);
           await hostPool({
-            courseCode: courseCode.trim() || "CPSC 223",
+            courseCode: courseCode.trim() || DEFAULT_COURSE_CODE,
             hostDisplayName: displayName,
             targetGroupSize,
           });

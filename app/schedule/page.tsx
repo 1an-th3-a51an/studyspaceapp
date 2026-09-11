@@ -7,12 +7,11 @@ import {
   DEMO_DEADLINES,
   DEMO_DISPLAY_NAME,
   DEMO_MEETINGS,
-  DEMO_SYLLABUS,
 } from "@/lib/demo/handsomeDan";
 import { getDisplayName, isDemoMode } from "@/lib/identity";
 import { mergeDeadlines, mergeSchedule } from "@/lib/scheduleMerge";
 import { getCourseTableEvents, getGcalEvents } from "@/lib/scheduleStore";
-import type { ClassMeeting, Deadline, OfficeHour } from "@/lib/types";
+import type { ClassMeeting, Deadline } from "@/lib/types";
 
 export default function SchedulePage() {
   const [demo, setDemo] = useState(false);
@@ -52,8 +51,6 @@ export default function SchedulePage() {
     [demo],
   );
 
-  const officeHours: OfficeHour[] = demo ? DEMO_SYLLABUS.officeHours : [];
-
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-col gap-6 px-4 py-10">
       <div className="flex flex-wrap items-start justify-between gap-4">
@@ -72,7 +69,6 @@ export default function SchedulePage() {
       <ScheduleBoard
         meetings={meetings}
         deadlines={deadlines}
-        officeHours={officeHours}
         demo={demo}
       />
     </div>

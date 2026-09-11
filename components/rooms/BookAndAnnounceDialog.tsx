@@ -21,7 +21,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { normalizeCourseCode, similarCourses } from "@/lib/courseSimilarity";
+import { isCanonicalCourseCode, normalizeCourseCode, similarCourses } from "@/lib/courseSimilarity";
+import { DEFAULT_COURSE_CODE } from "@/lib/demo/handsomeDan";
 import { announceBooking } from "@/lib/hooks/queue";
 import { getDisplayName, setDisplayName as persistDisplayName } from "@/lib/identity";
 import { failsProfanityCheck } from "@/lib/profanity";
@@ -60,6 +61,7 @@ export function BookAndAnnounceDialog({
       setName((n) => n || getDisplayName());
       setCourse((c) => c || courses[0] || "custom");
       setStart(nextHourLocal());
+      setCapacity(String(spot.capacity && spot.capacity >= 1 ? spot.capacity : 4));
       setError("");
     }, 0);
     return () => window.clearTimeout(timer);
@@ -73,8 +75,8 @@ export function BookAndAnnounceDialog({
     if (!spot) return;
     if (!name.trim()) return setError("Display name is required.");
     if (failsProfanityCheck(name)) return setError("Display name failed the 5-word check.");
-    if (!resolvedCourse || !/^[A-Z&]{2,5} \d{3}[A-Z]?$/.test(resolvedCourse)) {
-      return setError("Enter a course code like CPSC 223.");
+    if (!resolvedCourse || !isCanonicalCourseCode(resolvedCourse)) {
+      return setError(`Enter a course code like ${DEFAULT_COURSE_CODE}.`);
     }
     const startMs = Date.parse(start);
     if (Number.isNaN(startMs)) return setError("Pick a start time.");
@@ -145,7 +147,7 @@ export function BookAndAnnounceDialog({
             </Select>
             {course === "custom" ? (
               <Input
-                placeholder="MATH 225"
+                placeholder={DEFAULT_COURSE_CODE}
                 value={customCourse}
                 onChange={(e) => setCustomCourse(e.target.value.toUpperCase())}
               />
@@ -168,7 +170,7 @@ export function BookAndAnnounceDialog({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {[2, 3, 4, 5, 6, 8, 10].map((n) => (
+                  {[1, 2, 3, 4, 5, 6, 8, 10].map((n) => (
                     <SelectItem key={n} value={String(n)}>
                       {n}
                     </SelectItem>

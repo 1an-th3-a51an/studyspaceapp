@@ -48,7 +48,7 @@ export function TextPasteFallback() {
       <Textarea
         id="calendar-paste"
         rows={8}
-        placeholder="Paste BEGIN:VCALENDAR … or lines like CPSC 223 Lecture 2026-09-14T10:30:00-04:00"
+        placeholder="Paste BEGIN:VCALENDAR … or lines like S&DS 2380 Lecture 2026-09-14T13:05:00-04:00"
         value={text}
         onChange={(event) => setText(event.target.value)}
       />

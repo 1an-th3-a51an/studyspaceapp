@@ -51,6 +51,20 @@ export const BUILDINGS: Building[] = [
     aliases: ["hq", "humanities quad"],
   },
   {
+    id: "yuag",
+    name: "Yale University Art Gallery",
+    address: "1111 Chapel St",
+    point: { lat: 41.3084, lng: -72.9309 },
+    aliases: ["yuag", "art gallery"],
+  },
+  {
+    id: "17-hillhouse",
+    name: "17 Hillhouse Avenue",
+    address: "17 Hillhouse Ave",
+    point: { lat: 41.31415, lng: -72.92335 },
+    aliases: ["17 hillhouse"],
+  },
+  {
     id: "akw",
     name: "Arthur K. Watson Hall",
     address: "51 Prospect St",
@@ -136,6 +150,7 @@ export const LANDMARK_IDS = [
   "sterling",
   "davies",
   "hq",
+  "yuag",
   "kbt",
 ] as const;
 
