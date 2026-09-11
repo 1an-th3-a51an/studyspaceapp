@@ -11,6 +11,7 @@ export const STORAGE_KEYS = {
   maxExtraWalkingMinutes: "studyspace.maxExtraWalkingMinutes",
   recurringAutobook: "studyspace.recurringAutobook",
   clubSize: "studyspace.clubSize",
+  origin: "studyspace.origin",
 } as const;
 
 function canUseStorage() {

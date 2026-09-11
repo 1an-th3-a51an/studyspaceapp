@@ -2,7 +2,10 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { JoinHostPoolModal } from "@/components/pools/JoinHostPoolModal";
+import { LiveQueue } from "@/components/pools/LiveQueue";
+import { OpenBookings } from "@/components/pools/OpenBookings";
 import { PoolList } from "@/components/pools/PoolList";
+import { SimilarCoursePools } from "@/components/pools/SimilarCoursePools";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -11,7 +14,9 @@ import {
   joinPool,
   listPoolsByCourseCode,
 } from "@/lib/hooks/listPools";
+import { useQueuePolling } from "@/lib/hooks/queue";
 import { seedDb } from "@/lib/hooks/seedDb";
+import { normalizeCourseCode } from "@/lib/courseSimilarity";
 import { setDisplayName } from "@/lib/identity";
 import type { StudyPool } from "@/lib/types";
 
@@ -23,11 +28,25 @@ export default function PoolsPage() {
   const [selected, setSelected] = useState<StudyPool | null>(null);
   const [error, setError] = useState("");
   const [seedMessage, setSeedMessage] = useState("");
+  const [refreshKey, setRefreshKey] = useState(0);
+  const normalizedCourse = normalizeCourseCode(courseCode.trim() || "CPSC 223");
+  const queue = useQueuePolling(normalizedCourse);
 
   const refresh = useCallback(async (code: string) => {
     const result = await listPoolsByCourseCode(code.trim() || "CPSC 223");
     setPools(result.pools);
     setWired(result.wired);
+  }, []);
+
+  // Similar-course pools refetch only after something changed (seed/host/join).
+  const bump = () => setRefreshKey((k) => k + 1);
+
+  // Deep link from the Rooms page: /pools?course=MATH%20225
+  useEffect(() => {
+    const fromUrl = new URLSearchParams(window.location.search).get("course");
+    if (!fromUrl) return;
+    const timer = window.setTimeout(() => setCourseCode(normalizeCourseCode(fromUrl)), 0);
+    return () => window.clearTimeout(timer);
   }, []);
 
   useEffect(() => {
@@ -66,6 +85,7 @@ export default function PoolsPage() {
                 await seedDb();
                 setSeedMessage("Seed API returned OK.");
                 await refresh(courseCode);
+                bump();
               } catch (caught) {
                 setSeedMessage(
                   caught instanceof Error ? caught.message : "Seed failed",
@@ -89,9 +109,34 @@ export default function PoolsPage() {
       {seedMessage ? (
         <p className="text-sm text-muted-foreground">{seedMessage}</p>
       ) : null}
+      <OpenBookings
+        courseCode={normalizedCourse}
+        snapshot={queue.snapshot}
+        onSnapshot={queue.setSnapshot}
+        onNeedName={() => {
+          setSelected(null);
+          setModalOpen(true);
+        }}
+      />
+      <LiveQueue
+        courseCode={normalizedCourse}
+        snapshot={queue.snapshot}
+        available={queue.available}
+        onSnapshot={queue.setSnapshot}
+      />
+      {queue.error ? <p className="text-sm text-destructive">{queue.error}</p> : null}
       <PoolList
-        pools={pools}
+        pools={[...(queue.snapshot?.pools ?? []), ...pools]}
         wired={wired}
+        onJoin={(pool) => {
+          setSelected(pool);
+          setModalOpen(true);
+        }}
+      />
+      <SimilarCoursePools
+        courseCode={normalizedCourse}
+        refreshKey={refreshKey}
+        onPickCourse={(code) => setCourseCode(code)}
         onJoin={(pool) => {
           setSelected(pool);
           setModalOpen(true);
@@ -100,7 +145,7 @@ export default function PoolsPage() {
       <JoinHostPoolModal
         open={modalOpen}
         onOpenChange={setModalOpen}
-        courseCode={courseCode.trim() || "CPSC 223"}
+        courseCode={selected?.courseCode ?? (courseCode.trim() || "CPSC 223")}
         selectedPool={selected}
         onHost={async ({ displayName, targetGroupSize }) => {
           setDisplayName(displayName);
@@ -110,11 +155,13 @@ export default function PoolsPage() {
             targetGroupSize,
           });
           await refresh(courseCode);
+          bump();
         }}
         onJoin={async ({ displayName, pool }) => {
           setDisplayName(displayName);
           await joinPool({ poolId: pool.id });
           await refresh(courseCode);
+          bump();
         }}
       />
     </div>

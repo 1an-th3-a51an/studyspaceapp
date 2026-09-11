@@ -48,12 +48,64 @@ export type GenerateIcsEvent = {
 export type StudyRecommendation = {
   kind: "coffee" | "room";
   name: string;
+  /** Minutes on foot from the chosen origin. Recomputed from lat/lng when present. */
   walkingMinutes: number;
   bookingUrl?: string;
+  address?: string;
+  lat?: number;
+  lng?: number;
+  /** Straight-line meters from the origin, set by the recommender. */
+  distanceMeters?: number;
+  /** Free-text description used by natural-language search. */
+  description?: string;
+  /** Short feature tags: "quiet", "whiteboard", "outlets", "group", ... */
+  tags?: string[];
+  /** How many people fit comfortably. */
+  capacity?: number;
 };
 
 export type RoomPrefs = {
   examUrgency: number;
   includeCoffeeShops: boolean;
   maxExtraWalkingMinutes: number;
+};
+
+/** A person waiting in the live matchmaking queue for a course. */
+export type QueueEntry = {
+  id: string;
+  deviceId: string;
+  displayName: string;
+  courseCode: string;
+  targetGroupSize: number;
+  joinedAt: string; // ISO
+  lastSeenAt: string; // ISO, refreshed by polling
+  /** Set once matched into a pool. */
+  poolId?: string;
+};
+
+/** "I booked a room, come study" announcement sent to a class + adjacent classes. */
+export type RoomBooking = {
+  id: string;
+  deviceId: string;
+  hostDisplayName: string;
+  courseCode: string;
+  spotName: string;
+  bookingUrl?: string;
+  start: string; // ISO
+  capacity: number;
+  members: { deviceId: string; displayName: string }[];
+  createdAt: string; // ISO
+};
+
+/** What the pools page polls for. */
+export type QueueSnapshot = {
+  serverTime: string;
+  courseCode: string;
+  similarCourses: { courseCode: string; label: string }[];
+  queue: QueueEntry[];
+  myEntry: QueueEntry | null;
+  /** Pools formed by the matchmaker for this course. */
+  pools: StudyPool[];
+  /** Bookings for this course and adjacent ones; `via` explains adjacency. */
+  bookings: (RoomBooking & { via?: string })[];
 };

@@ -11,6 +11,7 @@
   "dependencies": {
     "class-variance-authority": "^0.7.1",
     "cn": "^0.2.6",
+    "leaflet": "^1.9.4",
     "lucide-react": "^1.44.0",
     "next": "16.3.4",
     "radix-ui": "^1.6.7",
@@ -21,6 +22,7 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
+    "@types/leaflet": "^1.9.22",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
