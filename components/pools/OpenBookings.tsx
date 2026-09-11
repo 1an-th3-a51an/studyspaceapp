@@ -8,6 +8,7 @@ import { DebouncedSubmitButton } from "@/components/shared/DebouncedSubmitButton
 import { formatWhen } from "@/lib/format";
 import { joinBooking } from "@/lib/hooks/queue";
 import { ensureDeviceId, getDisplayName } from "@/lib/identity";
+import { announceJoin } from "@/lib/joinBanner";
 import type { QueueSnapshot } from "@/lib/types";
 
 export function OpenBookings({
@@ -92,6 +93,9 @@ export function OpenBookings({
                   {b.members.map((m) => m.displayName).join(", ")}
                 </span>
               </div>
+              {b.capacityNote ? (
+                <p className="text-xs text-muted-foreground">{b.capacityNote}</p>
+              ) : null}
               <div className="flex flex-wrap gap-2">
                 {joined ? (
                   <Badge variant="default">You&apos;re in</Badge>
@@ -107,9 +111,16 @@ export function OpenBookings({
                       }
                       setError("");
                       try {
-                        onSnapshot(
-                          await joinBooking({ bookingId: b.id, displayName, courseCode }),
-                        );
+                        const next = await joinBooking({
+                          bookingId: b.id,
+                          displayName,
+                          courseCode,
+                        });
+                        onSnapshot(next);
+                        announceJoin({
+                          title: `You're in at ${next.booking.spotName}`,
+                          detail: `${next.booking.courseCode} · ${next.booking.members.length} of ${next.booking.capacity} · ${formatWhen(next.booking.start)}`,
+                        });
                       } catch (caught) {
                         setError(caught instanceof Error ? caught.message : "Join failed");
                       }

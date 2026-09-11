@@ -11,18 +11,13 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { parseCalendarText } from "@/lib/icsParse";
-import {
-  setCourseTableEvents,
-  setGcalEvents,
-} from "@/lib/scheduleStore";
-import type { EventSource } from "@/lib/types";
+import { parseCalendar } from "@/lib/icsParse";
+import { setCalendarImport } from "@/lib/scheduleStore";
+import type { ParsedCalendarSource } from "@/lib/types";
 
 export function TextPasteFallback() {
   const [text, setText] = useState("");
-  const [source, setSource] = useState<Extract<EventSource, "gcal" | "coursetable-ics">>(
-    "coursetable-ics",
-  );
+  const [source, setSource] = useState<ParsedCalendarSource>("coursetable-ics");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
@@ -32,9 +27,7 @@ export function TextPasteFallback() {
         <Label htmlFor="calendar-paste">Parse pasted calendar text</Label>
         <Select
           value={source}
-          onValueChange={(value) =>
-            setSource(value as Extract<EventSource, "gcal" | "coursetable-ics">)
-          }
+          onValueChange={(value) => setSource(value as ParsedCalendarSource)}
         >
           <SelectTrigger className="min-w-48">
             <SelectValue />
@@ -58,14 +51,15 @@ export function TextPasteFallback() {
         onSubmit={() => {
           setError("");
           setMessage("");
-          const events = parseCalendarText(text, source);
-          if (events.length === 0) {
+          const parsed = parseCalendar(text, source);
+          if (parsed.meetings.length === 0 && parsed.deadlines.length === 0) {
             setError("No events found. Paste ICS or a line with an ISO timestamp.");
             return;
           }
-          if (source === "gcal") setGcalEvents(events);
-          else setCourseTableEvents(events);
-          setMessage(`Parsed ${events.length} event${events.length === 1 ? "" : "s"}.`);
+          setCalendarImport(source, parsed);
+          setMessage(
+            `Parsed ${parsed.meetings.length} class meeting(s) and ${parsed.deadlines.length} deadline(s). Schedule, Pools, and Rooms now use this calendar.`,
+          );
         }}
       >
         Parse pasted calendar text

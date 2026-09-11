@@ -40,7 +40,7 @@ export function ScheduleBoard({
           <CardDescription>
             {demo
               ? "Handsome Dan demo dataset (local, no LLM)."
-              : "Merged calendar. Google Calendar wins on the same start-minute + title."}
+              : "Your connected calendars, with recurring classes expanded. Google Calendar wins on the same start-minute + title."}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">

@@ -1,8 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { CalendarCheck } from "lucide-react";
+import { AutofillTimeslotButton } from "@/components/rooms/AutofillTimeslotButton";
 import { DebouncedSubmitButton } from "@/components/shared/DebouncedSubmitButton";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -24,9 +27,19 @@ import {
 import { isCanonicalCourseCode, normalizeCourseCode, similarCourses } from "@/lib/courseSimilarity";
 import { DEFAULT_COURSE_CODE } from "@/lib/demo/handsomeDan";
 import { announceBooking } from "@/lib/hooks/queue";
-import { getDisplayName, setDisplayName as persistDisplayName } from "@/lib/identity";
+import {
+  getDisplayName,
+  getNotifyEmail,
+  setDisplayName as persistDisplayName,
+  setNotifyEmail,
+} from "@/lib/identity";
+import { announceJoin } from "@/lib/joinBanner";
+import { useLibcalAvailability } from "@/lib/hooks/libcalAvailability";
+import { autofillHelperPath, selectionMessage, slotDeepLink, slotRequestForSpot, snapToGrid } from "@/lib/libcal";
 import { failsProfanityCheck } from "@/lib/profanity";
-import type { StudyRecommendation } from "@/lib/types";
+import { subscribeToCourses } from "@/lib/hooks/subscribe";
+import { findSpot, resolveBookingCapacity } from "@/lib/spots";
+import type { MyCourse, StudyRecommendation } from "@/lib/types";
 
 function nextHourLocal(): string {
   const d = new Date();
@@ -39,12 +52,15 @@ function nextHourLocal(): string {
 export function BookAndAnnounceDialog({
   spot,
   courses,
+  defaultCourseCode,
   onOpenChange,
 }: {
   /** The spot being booked; null closes the dialog. */
   spot: StudyRecommendation | null;
-  /** Course codes from the user's schedule, for the picker. */
-  courses: string[];
+  /** Courses from the user's schedule, for the picker. */
+  courses: MyCourse[];
+  /** Pre-selected course, normally the one the search was anchored on. */
+  defaultCourseCode?: string;
   onOpenChange: (open: boolean) => void;
 }) {
   const router = useRouter();
@@ -52,24 +68,62 @@ export function BookAndAnnounceDialog({
   const [course, setCourse] = useState("");
   const [customCourse, setCustomCourse] = useState("");
   const [start, setStart] = useState(nextHourLocal);
-  const [capacity, setCapacity] = useState("4");
+  const [seats, setSeats] = useState("1");
+  const [email, setEmail] = useState("");
   const [error, setError] = useState("");
+
+  const registrySpot = spot ? findSpot(spot.name) : undefined;
+  const published = registrySpot?.capacitySource === "schedule.yale.edu";
+  const roomCapacity = registrySpot?.capacity ?? spot?.capacity ?? 4;
 
   useEffect(() => {
     if (!spot) return;
     const timer = window.setTimeout(() => {
       setName((n) => n || getDisplayName());
-      setCourse((c) => c || courses[0] || "custom");
+      setEmail((e) => e || getNotifyEmail());
+      setCourse(defaultCourseCode || courses[0]?.courseCode || "custom");
       setStart(nextHourLocal());
-      setCapacity(String(spot.capacity && spot.capacity >= 1 ? spot.capacity : 4));
+      setSeats(String(roomCapacity));
       setError("");
     }, 0);
     return () => window.clearTimeout(timer);
-  }, [spot, courses]);
+  }, [spot, courses, defaultCourseCode, roomCapacity]);
 
   const resolvedCourse = normalizeCourseCode(course === "custom" ? customCourse : course);
   const adjacent = resolvedCourse ? similarCourses(resolvedCourse, 4) : [];
   const isRoom = spot?.kind === "room";
+
+  // Seat options never exceed the room. A one-person room offers only "1".
+  const seatOptions = useMemo(
+    () => Array.from({ length: Math.max(1, roomCapacity) }, (_, i) => i + 1),
+    [roomCapacity],
+  );
+
+  const startIso = useMemo(() => {
+    const ms = Date.parse(start);
+    return Number.isNaN(ms) ? "" : new Date(ms).toISOString();
+  }, [start]);
+
+  const requestedSlot = useMemo(() => {
+    if (!registrySpot || !registrySpot.bookingUrl || !startIso) return null;
+    return slotRequestForSpot(registrySpot, startIso);
+  }, [registrySpot, startIso]);
+
+  const { availability, checking: checkingSlot } = useLibcalAvailability(requestedSlot);
+
+  const slot = useMemo(() => {
+    if (!requestedSlot) return null;
+    const request = availability?.startIso
+      ? { ...requestedSlot, startIso: availability.startIso }
+      : requestedSlot;
+    return {
+      request,
+      url: slotDeepLink(request),
+      message: selectionMessage(request),
+      requestedMessage: selectionMessage(requestedSlot),
+      shifted: Boolean(availability?.shifted),
+    };
+  }, [requestedSlot, availability]);
 
   async function submit() {
     if (!spot) return;
@@ -78,23 +132,54 @@ export function BookAndAnnounceDialog({
     if (!resolvedCourse || !isCanonicalCourseCode(resolvedCourse)) {
       return setError(`Enter a course code like ${DEFAULT_COURSE_CODE}.`);
     }
-    const startMs = Date.parse(start);
-    if (Number.isNaN(startMs)) return setError("Pick a start time.");
+    if (!startIso) return setError("Pick a start time.");
     setError("");
     persistDisplayName(name.trim());
 
-    // Open the booking page synchronously so popup blockers allow it.
-    if (spot.bookingUrl) window.open(spot.bookingUrl, "_blank", "noopener,noreferrer");
+    // Open the LibCal grid synchronously so popup blockers allow it.
+    const target = slot
+      ? autofillHelperPath(slot.request)
+      : spot.bookingUrl;
+    if (target) window.open(target, "_blank", "noopener,noreferrer");
 
     try {
-      await announceBooking({
+      // Subscribing first means the host's own booking email goes out to a
+      // list that already includes everyone else who opted in.
+      if (email.trim()) {
+        setNotifyEmail(email.trim());
+        const codes = Array.from(
+          new Set([
+            resolvedCourse,
+            ...courses.map((c) => c.courseCode),
+            ...adjacent.map((a) => a.courseCode),
+          ]),
+        ).filter((c) => isCanonicalCourseCode(c));
+        await subscribeToCourses({
+          email: email.trim(),
+          displayName: name.trim(),
+          courseCodes: codes,
+        }).catch(() => undefined);
+      }
+
+      const result = await announceBooking({
         courseCode: resolvedCourse,
         displayName: name.trim(),
         spotName: spot.name,
         bookingUrl: spot.bookingUrl,
-        start: new Date(startMs).toISOString(),
-        capacity: Number(capacity),
+        start: snapToGrid(slot?.request.startIso ?? startIso),
+        capacity: Number(seats),
       });
+
+      const booking = result.booking;
+      const notified = booking.notified;
+      announceJoin({
+        title: `You booked ${booking.spotName}`,
+        detail:
+          notified && notified.recipients > 0
+            ? `${booking.courseCode} · ${booking.capacity} seat${booking.capacity === 1 ? "" : "s"} · emailed ${notified.recipients} classmate${notified.recipients === 1 ? "" : "s"}`
+            : `${booking.courseCode} · ${booking.capacity} seat${booking.capacity === 1 ? "" : "s"}`,
+      });
+
       onOpenChange(false);
       router.push(`/pools?course=${encodeURIComponent(resolvedCourse)}`);
     } catch (caught) {
@@ -102,22 +187,24 @@ export function BookAndAnnounceDialog({
     }
   }
 
+  const ruling = spot ? resolveBookingCapacity(spot.name, Number(seats)) : null;
+
   return (
     <Dialog open={spot !== null} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent className="max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
             {isRoom ? "Book" : "Meet at"} {spot?.name ?? ""}
           </DialogTitle>
           <DialogDescription>
             {isRoom
-              ? "Opens the Yale booking page in a new tab and tells your class you have a room."
+              ? "Opens the Yale booking page on the right day so Autofill can skip red booked cells and click the earliest green slot, then tells your class you have a room."
               : "Tells your class you will be here. No booking needed."}{" "}
             Classmates in {resolvedCourse || "your course"}
             {adjacent.length > 0
               ? ` and ${adjacent.map((a) => a.courseCode).join(", ")}`
               : ""}{" "}
-            will see it on the Pools page.
+            see it on the Pools page, and subscribers get an email.
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-4">
@@ -138,8 +225,10 @@ export function BookAndAnnounceDialog({
               </SelectTrigger>
               <SelectContent>
                 {courses.map((c) => (
-                  <SelectItem key={c} value={c}>
-                    {c}
+                  <SelectItem key={c.courseCode} value={c.courseCode}>
+                    {c.title && c.title !== c.courseCode
+                      ? `${c.courseCode} · ${c.title}`
+                      : c.courseCode}
                   </SelectItem>
                 ))}
                 <SelectItem value="custom">Other…</SelectItem>
@@ -159,26 +248,76 @@ export function BookAndAnnounceDialog({
               <Input
                 id="book-start"
                 type="datetime-local"
+                step={1800}
                 value={start}
                 onChange={(e) => setStart(e.target.value)}
               />
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="book-cap">Seats</Label>
-              <Select value={capacity} onValueChange={setCapacity}>
+              <Select value={seats} onValueChange={setSeats}>
                 <SelectTrigger id="book-cap" className="w-full">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {[1, 2, 3, 4, 5, 6, 8, 10].map((n) => (
+                  {seatOptions.map((n) => (
                     <SelectItem key={n} value={String(n)}>
                       {n}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
+              <p className="text-xs text-muted-foreground">
+                {published
+                  ? `schedule.yale.edu lists ${roomCapacity} seat${roomCapacity === 1 ? "" : "s"}; the pool cannot exceed that.`
+                  : `Fits about ${roomCapacity}.`}
+              </p>
             </div>
           </div>
+
+          {slot ? (
+            <div className="space-y-2 rounded-lg border bg-muted/40 p-3">
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge variant="secondary" className="gap-1.5 font-normal">
+                  <CalendarCheck className="size-3" aria-hidden />
+                  Autofill timeslot
+                </Badge>
+                <code className="text-xs">{checkingSlot ? "Checking Yale…" : slot.message}</code>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {checkingSlot
+                  ? "Checking Yale for red (booked) vs green (open) cells…"
+                  : slot.shifted
+                    ? `${slot.requestedMessage} is already booked. Autofill will click the earliest green start instead.`
+                    : "Autofill skips red booked cells and clicks the earliest green start. Leave the end-time dropdown alone so Yale keeps its default length."}
+              </p>
+              <AutofillTimeslotButton
+                spotName={spot?.name ?? ""}
+                startIso={slot.request.startIso}
+                variant="outline"
+              />
+            </div>
+          ) : null}
+
+          <div className="space-y-1.5">
+            <Label htmlFor="book-email">Email for announcements (optional)</Label>
+            <Input
+              id="book-email"
+              type="email"
+              inputMode="email"
+              placeholder="you@yale.edu"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+            />
+            <p className="text-xs text-muted-foreground">
+              Subscribes you to bookings for your courses, and is how classmates
+              who subscribed hear about this one. No address, no email.
+            </p>
+          </div>
+
+          {ruling?.note ? (
+            <p className="text-sm text-muted-foreground">{ruling.note}</p>
+          ) : null}
           {error ? <p className="text-sm text-destructive">{error}</p> : null}
         </div>
         <DialogFooter>

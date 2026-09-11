@@ -1,4 +1,4 @@
-import { DEMO_RECOMMENDATIONS } from "@/lib/demo/handsomeDan";
+import { STUDY_SPOTS } from "@/lib/spots";
 import {
   directionsUrl,
   haversineMeters,
@@ -47,7 +47,7 @@ function withDistances(
 export function recommendSpaces(
   prefs: RoomPrefs,
   origin: LatLng | null,
-  spots: StudyRecommendation[] = DEMO_RECOMMENDATIONS,
+  spots: StudyRecommendation[] = STUDY_SPOTS,
 ): Recommendation {
   const ranked = withDistances(spots, origin).sort(
     (a, b) =>

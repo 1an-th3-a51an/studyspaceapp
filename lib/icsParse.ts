@@ -1,5 +1,28 @@
-import type { ClassMeeting, EventSource } from "@/lib/types";
+import type { ClassMeeting, Deadline, EventSource } from "@/lib/types";
 import { extractCourseCode } from "@/lib/courseSimilarity";
+
+/** One unfolded ICS property: `DTSTART;TZID=America/New_York:20260914T130500`. */
+type IcsProp = { name: string; params: Record<string, string>; value: string };
+
+type IcsComponent = { type: string; props: IcsProp[] };
+
+/** A wall-clock instant plus whether the source had a time at all. */
+type IcsMoment = { ms: number; dateOnly: boolean };
+
+/** A weekly lecture over a 14-week term is ~28 events; 400 is slack for dailies. */
+const MAX_OCCURRENCES = 400;
+/** Never expand more than roughly one academic year past the first occurrence. */
+const MAX_HORIZON_DAYS = 400;
+
+const DAY_INDEX: Record<string, number> = {
+  SU: 0,
+  MO: 1,
+  TU: 2,
+  WE: 3,
+  TH: 4,
+  FR: 5,
+  SA: 6,
+};
 
 function unfoldIcs(raw: string): string[] {
   const normalized = raw.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
@@ -15,23 +38,6 @@ function unfoldIcs(raw: string): string[] {
   return lines;
 }
 
-function icsDateToIso(value: string): string {
-  const compact = value.trim();
-  const zulu = compact.endsWith("Z");
-  const digits = compact.replace(/[^\d]/g, "");
-  const year = Number(digits.slice(0, 4));
-  const month = Number(digits.slice(4, 6));
-  const day = Number(digits.slice(6, 8));
-  const hour = Number(digits.slice(8, 10) || "0");
-  const minute = Number(digits.slice(10, 12) || "0");
-  const second = Number(digits.slice(12, 14) || "0");
-
-  if (zulu) {
-    return new Date(Date.UTC(year, month - 1, day, hour, minute, second)).toISOString();
-  }
-  return new Date(year, month - 1, day, hour, minute, second).toISOString();
-}
-
 function unescapeIcs(value: string): string {
   return value
     .replace(/\\r\\n/gi, "\n")
@@ -40,6 +46,145 @@ function unescapeIcs(value: string): string {
     .replace(/\\,/g, ",")
     .replace(/\\;/g, ";")
     .replace(/\\\\/g, "\\");
+}
+
+function parseProp(line: string): IcsProp | null {
+  const splitAt = line.indexOf(":");
+  if (splitAt === -1) return null;
+  const head = line.slice(0, splitAt);
+  const value = line.slice(splitAt + 1);
+  const [rawName, ...rawParams] = head.split(";");
+  const params: Record<string, string> = {};
+  for (const part of rawParams) {
+    const eq = part.indexOf("=");
+    if (eq === -1) continue;
+    params[part.slice(0, eq).toUpperCase()] = part.slice(eq + 1).replace(/^"|"$/g, "");
+  }
+  return { name: rawName.toUpperCase(), params, value };
+}
+
+function firstProp(component: IcsComponent, name: string): IcsProp | undefined {
+  return component.props.find((p) => p.name === name);
+}
+
+function textOf(component: IcsComponent, name: string): string {
+  const prop = firstProp(component, name);
+  return prop ? unescapeIcs(prop.value).trim() : "";
+}
+
+/**
+ * ICS timestamps come in three flavours: UTC (`...Z`), floating/zoned local
+ * (`20260914T130500`, optionally with TZID), and date-only (`20260917`).
+ *
+ * Zoned values are read as the viewer's local wall clock. Yale calendars are
+ * all America/New_York, so for anyone actually on campus this is exact, and it
+ * keeps a 1:05pm class at 1:05pm instead of shifting it by the UTC offset.
+ */
+function icsDateToMoment(prop: IcsProp | undefined): IcsMoment | null {
+  if (!prop) return null;
+  const compact = prop.value.trim();
+  if (!compact) return null;
+  const digits = compact.replace(/[^\d]/g, "");
+  if (digits.length < 8) return null;
+  const dateOnly = prop.params.VALUE === "DATE" || digits.length === 8;
+
+  const year = Number(digits.slice(0, 4));
+  const month = Number(digits.slice(4, 6));
+  const day = Number(digits.slice(6, 8));
+  const hour = Number(digits.slice(8, 10) || "0");
+  const minute = Number(digits.slice(10, 12) || "0");
+  const second = Number(digits.slice(12, 14) || "0");
+  if (!year || !month || !day) return null;
+
+  const ms = compact.endsWith("Z")
+    ? Date.UTC(year, month - 1, day, hour, minute, second)
+    : new Date(year, month - 1, day, hour, minute, second).getTime();
+  return Number.isNaN(ms) ? null : { ms, dateOnly };
+}
+
+function parseRule(value: string): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const part of value.split(";")) {
+    const eq = part.indexOf("=");
+    if (eq === -1) continue;
+    out[part.slice(0, eq).toUpperCase()] = part.slice(eq + 1);
+  }
+  return out;
+}
+
+function addDays(ms: number, days: number): number {
+  // Day arithmetic on a local Date keeps the wall-clock time across DST, so a
+  // 1:05pm class stays 1:05pm when the clocks change mid-semester.
+  const d = new Date(ms);
+  d.setDate(d.getDate() + days);
+  return d.getTime();
+}
+
+/**
+ * Expand an RRULE into start timestamps.
+ *
+ * Google Calendar exports a recurring class as one VEVENT plus an RRULE, so
+ * without this a connected calendar shows a single meeting per course for the
+ * whole term. Handles the shapes real course calendars use — WEEKLY with
+ * BYDAY, and DAILY — and degrades to a single occurrence for anything else.
+ */
+function expandRecurrence(
+  startMs: number,
+  rrule: string | undefined,
+  exdates: number[],
+): number[] {
+  if (!rrule) return [startMs];
+  const rule = parseRule(rrule);
+  const freq = (rule.FREQ ?? "").toUpperCase();
+  if (freq !== "WEEKLY" && freq !== "DAILY") return [startMs];
+
+  const interval = Math.max(1, Number(rule.INTERVAL) || 1);
+  const count = Number(rule.COUNT) || 0;
+  const untilMoment = rule.UNTIL
+    ? icsDateToMoment({ name: "UNTIL", params: {}, value: rule.UNTIL })
+    : null;
+  const horizonMs = addDays(startMs, MAX_HORIZON_DAYS);
+  const limitMs = Math.min(untilMoment?.ms ?? horizonMs, horizonMs);
+  const skip = new Set(exdates);
+
+  const byDay = (rule.BYDAY ?? "")
+    .split(",")
+    .map((d) => DAY_INDEX[d.trim().slice(-2).toUpperCase()])
+    .filter((d): d is number => typeof d === "number");
+
+  const out: number[] = [];
+  const push = (ms: number) => {
+    if (ms < startMs || ms > limitMs) return;
+    if (skip.has(ms)) return;
+    out.push(ms);
+  };
+
+  if (freq === "DAILY") {
+    for (let ms = startMs; ms <= limitMs && out.length < MAX_OCCURRENCES; ms = addDays(ms, interval)) {
+      push(ms);
+    }
+  } else if (byDay.length === 0) {
+    for (let ms = startMs; ms <= limitMs && out.length < MAX_OCCURRENCES; ms = addDays(ms, 7 * interval)) {
+      push(ms);
+    }
+  } else {
+    // Walk week by week from the Sunday of the start week, emitting each BYDAY.
+    const weekStart = addDays(startMs, -new Date(startMs).getDay());
+    for (
+      let week = weekStart;
+      week <= limitMs && out.length < MAX_OCCURRENCES;
+      week = addDays(week, 7 * interval)
+    ) {
+      for (const day of [...byDay].sort((a, b) => a - b)) {
+        if (out.length >= MAX_OCCURRENCES) break;
+        push(addDays(week, day));
+      }
+    }
+  }
+
+  out.sort((a, b) => a - b);
+  const capped = count > 0 ? out.slice(0, count) : out;
+  return capped.length > 0 ? capped : [startMs];
 }
 
 function isMeetingKind(text: string): boolean {
@@ -103,100 +248,176 @@ export function extractEventTitle(
   return "";
 }
 
-function parseIcsEvents(raw: string, source: EventSource): ClassMeeting[] {
-  const lines = unfoldIcs(raw);
-  const events: ClassMeeting[] = [];
-  let inEvent = false;
-  let summary = "";
-  let description = "";
-  let location = "";
-  let start = "";
-  let end = "";
+/** Words that mean "something is due" rather than "class meets". */
+const DEADLINE_RE =
+  /\b(due|deadline|assignment|problem\s*set|p-?set|homework|hw\s*\d|essay|paper|draft|submit|submission|turn\s*in|quiz|midterm|exam|final|presentation|lab\s*report|response|reading\s*response|milestone|checkpoint)\b/i;
 
-  const flush = () => {
-    if (!summary || !start) return;
-    const startIso = icsDateToIso(start);
-    const endIso = end
-      ? icsDateToIso(end)
-      : new Date(new Date(startIso).getTime() + 60 * 60 * 1000).toISOString();
-    const haystack = `${summary}\n${description}`;
-    const courseCode = extractCourseCode(haystack);
-    events.push({
-      courseCode,
-      title: extractEventTitle(summary, description, courseCode),
-      location: location || undefined,
-      start: startIso,
-      end: endIso,
-      source,
-    });
-  };
+/** A class meeting is long; a due date is a pin on the calendar. */
+const SHORT_EVENT_MS = 30 * 60 * 1000;
 
-  for (const line of lines) {
-    if (line === "BEGIN:VEVENT") {
-      inEvent = true;
-      summary = "";
-      description = "";
-      location = "";
-      start = "";
-      end = "";
-      continue;
-    }
-    if (line === "END:VEVENT") {
-      if (inEvent) flush();
-      inEvent = false;
-      continue;
-    }
-    if (!inEvent) continue;
-
-    const splitAt = line.indexOf(":");
-    if (splitAt === -1) continue;
-    const key = line.slice(0, splitAt).split(";")[0].toUpperCase();
-    const value = unescapeIcs(line.slice(splitAt + 1));
-    if (key === "SUMMARY") summary = value;
-    if (key === "DESCRIPTION") description = value;
-    if (key === "LOCATION") location = value;
-    if (key === "DTSTART") start = value;
-    if (key === "DTEND") end = value;
-  }
-
-  return events;
+/**
+ * An all-day due date means "by the end of that day", not "by midnight as it
+ * begins". Calendars encode it as a bare date, so move it to 23:59 local.
+ */
+function endOfDayIfDateOnly(ms: number, dateOnly: boolean): number {
+  if (!dateOnly) return ms;
+  const d = new Date(ms);
+  d.setHours(23, 59, 0, 0);
+  return d.getTime();
 }
 
-function parseLineEvents(raw: string, source: EventSource): ClassMeeting[] {
-  const events: ClassMeeting[] = [];
+function looksLikeDeadline(title: string, durationMs: number, dateOnly: boolean): boolean {
+  if (!DEADLINE_RE.test(title)) return false;
+  // "Midterm exam" in a 2-hour block is still a thing you attend, but an
+  // all-day or near-instant event with deadline wording is a due date.
+  return dateOnly || durationMs <= SHORT_EVENT_MS;
+}
+
+export type ParsedCalendar = {
+  meetings: ClassMeeting[];
+  deadlines: Deadline[];
+};
+
+function splitComponents(raw: string): IcsComponent[] {
+  const out: IcsComponent[] = [];
+  const stack: IcsComponent[] = [];
+  for (const line of unfoldIcs(raw)) {
+    const prop = parseProp(line);
+    if (!prop) continue;
+    if (prop.name === "BEGIN") {
+      stack.push({ type: prop.value.trim().toUpperCase(), props: [] });
+      continue;
+    }
+    if (prop.name === "END") {
+      const done = stack.pop();
+      if (done) out.push(done);
+      continue;
+    }
+    stack[stack.length - 1]?.props.push(prop);
+  }
+  return out;
+}
+
+function parseIcsCalendar(raw: string, source: EventSource): ParsedCalendar {
+  const meetings: ClassMeeting[] = [];
+  const deadlines: Deadline[] = [];
+
+  for (const component of splitComponents(raw)) {
+    if (component.type !== "VEVENT" && component.type !== "VTODO") continue;
+
+    const summary = textOf(component, "SUMMARY");
+    const description = textOf(component, "DESCRIPTION");
+    const location = textOf(component, "LOCATION");
+    const courseCode = extractCourseCode(`${summary}\n${description}`);
+    const title = extractEventTitle(summary, description, courseCode) || summary;
+    if (!title) continue;
+
+    // VTODO carries DUE; VEVENT carries DTSTART/DTEND.
+    const startMoment =
+      icsDateToMoment(firstProp(component, "DTSTART")) ??
+      icsDateToMoment(firstProp(component, "DUE"));
+    if (!startMoment) continue;
+    const endMoment = icsDateToMoment(firstProp(component, "DTEND"));
+    const durationMs = endMoment ? Math.max(0, endMoment.ms - startMoment.ms) : 0;
+
+    if (
+      component.type === "VTODO" ||
+      looksLikeDeadline(`${summary} ${description}`, durationMs, startMoment.dateOnly)
+    ) {
+      deadlines.push({
+        courseCode,
+        title,
+        due: new Date(
+          endOfDayIfDateOnly(startMoment.ms, startMoment.dateOnly),
+        ).toISOString(),
+        source,
+      });
+      continue;
+    }
+
+    const exdates = component.props
+      .filter((p) => p.name === "EXDATE")
+      .flatMap((p) =>
+        p.value
+          .split(",")
+          .map((v) => icsDateToMoment({ ...p, value: v })?.ms)
+          .filter((ms): ms is number => typeof ms === "number"),
+      );
+    const lengthMs = durationMs > 0 ? durationMs : 60 * 60 * 1000;
+
+    for (const occurrenceMs of expandRecurrence(
+      startMoment.ms,
+      firstProp(component, "RRULE")?.value,
+      exdates,
+    )) {
+      meetings.push({
+        courseCode,
+        title,
+        location: location || undefined,
+        start: new Date(occurrenceMs).toISOString(),
+        end: new Date(occurrenceMs + lengthMs).toISOString(),
+        source,
+      });
+    }
+  }
+
+  return { meetings, deadlines };
+}
+
+function parseLineCalendar(raw: string, source: EventSource): ParsedCalendar {
+  const meetings: ClassMeeting[] = [];
+  const deadlines: Deadline[] = [];
+
   for (const line of raw.split(/\r?\n/)) {
     const trimmed = line.trim();
     if (!trimmed) continue;
     const isoMatch = trimmed.match(
-      /(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2})?(?:[+-]\d{2}:\d{2}|Z)?)/,
+      /(\d{4}-\d{2}-\d{2}(?:T\d{2}:\d{2}(?::\d{2})?(?:[+-]\d{2}:\d{2}|Z)?)?)/,
     );
     if (!isoMatch) continue;
-    const start = isoMatch[1];
+    const stamp = isoMatch[1];
+    const dateOnly = !stamp.includes("T");
     const remainder =
-      trimmed.replace(isoMatch[1], "").replace(/[|@,-]+/g, " ").trim() ||
-      "Untitled";
-    const startDate = new Date(start);
+      trimmed.replace(stamp, "").replace(/[|@,-]+/g, " ").trim() || "Untitled";
+    const startDate = new Date(dateOnly ? `${stamp}T23:59:00` : stamp);
     if (Number.isNaN(startDate.getTime())) continue;
+
+
     const courseCode = extractCourseCode(remainder);
-    events.push({
+    const title = extractEventTitle(remainder, "", courseCode) || remainder;
+
+    if (looksLikeDeadline(remainder, 0, dateOnly)) {
+      deadlines.push({
+        courseCode,
+        title,
+        due: startDate.toISOString(),
+        source,
+      });
+      continue;
+    }
+    meetings.push({
       courseCode,
-      title: extractEventTitle(remainder, "", courseCode),
+      title,
       start: startDate.toISOString(),
       end: new Date(startDate.getTime() + 60 * 60 * 1000).toISOString(),
       source,
     });
   }
-  return events;
+
+  return { meetings, deadlines };
 }
 
-export function parseCalendarText(
-  raw: string,
-  source: EventSource,
-): ClassMeeting[] {
+/** Parse a .ics file or a list of timestamped lines into classes and due dates. */
+export function parseCalendar(raw: string, source: EventSource): ParsedCalendar {
   const text = raw.trim();
-  if (!text) return [];
+  if (!text) return { meetings: [], deadlines: [] };
   if (text.includes("BEGIN:VCALENDAR") || text.includes("BEGIN:VEVENT")) {
-    return parseIcsEvents(text, source);
+    return parseIcsCalendar(text, source);
   }
-  return parseLineEvents(text, source);
+  return parseLineCalendar(text, source);
+}
+
+/** Meetings only, for callers that do not care about due dates. */
+export function parseCalendarText(raw: string, source: EventSource): ClassMeeting[] {
+  return parseCalendar(raw, source).meetings;
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { LocateFixed } from "lucide-react";
 import { BookAndAnnounceDialog } from "@/components/rooms/BookAndAnnounceDialog";
 import { RecommendationCard, type CardMatch } from "@/components/rooms/RecommendationCard";
@@ -12,12 +13,13 @@ import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
-import { DEMO_MEETINGS } from "@/lib/demo/handsomeDan";
 import { formatWhen } from "@/lib/format";
 import {
   DEFAULT_LANDMARK_ID,
@@ -28,23 +30,21 @@ import {
   type OriginChoice,
   type ResolvedOrigin,
 } from "@/lib/geo";
-import { isDemoMode, readJson, STORAGE_KEYS, writeJson } from "@/lib/identity";
+import { readJson, STORAGE_KEYS, writeJson } from "@/lib/identity";
 import { searchSpaces, type SearchMethod } from "@/lib/hooks/searchSpaces";
+import { useSchedule } from "@/lib/hooks/useSchedule";
 import { recommendSpaces, type RankedSpot } from "@/lib/recommendations";
 import { matchedTags, type SpaceMatch } from "@/lib/spaceSearch";
-import { mergeSchedule } from "@/lib/scheduleMerge";
-import {
-  getCourseTableEvents,
-  getGcalEvents,
-  getRoomPrefs,
-  setRoomPrefs,
-} from "@/lib/scheduleStore";
-import type { ClassMeeting, RoomPrefs, StudyRecommendation } from "@/lib/types";
+import { LIBCAL_GRID_MINUTES } from "@/lib/libcal";
+import { getRoomPrefs, setRoomPrefs } from "@/lib/scheduleStore";
+import type { ClassMeeting, MyCourse, RoomPrefs, StudyRecommendation } from "@/lib/types";
 
 const DEFAULT_ORIGIN: OriginChoice = { kind: "next-class" };
 
 function originToValue(choice: OriginChoice): string {
-  return choice.kind === "landmark" ? `landmark:${choice.id}` : choice.kind;
+  if (choice.kind === "landmark") return `landmark:${choice.id}`;
+  if (choice.kind === "course") return `course:${choice.courseCode}`;
+  return choice.kind;
 }
 
 function valueToOrigin(value: string): OriginChoice {
@@ -52,49 +52,58 @@ function valueToOrigin(value: string): OriginChoice {
   if (value.startsWith("landmark:")) {
     return { kind: "landmark", id: value.slice("landmark:".length) };
   }
+  if (value.startsWith("course:")) {
+    return { kind: "course", courseCode: value.slice("course:".length) };
+  }
   return { kind: "next-class" };
 }
 
 function pickNextClass(meetings: ClassMeeting[], now: number): ClassMeeting | null {
   const upcoming = meetings
+    .filter((m) => m.courseCode && m.courseCode !== "UNKNOWN")
     .filter((m) => new Date(m.end).getTime() > now)
     .sort((a, b) => a.start.localeCompare(b.start));
-  return upcoming[0] ?? meetings[0] ?? null;
+  return upcoming[0] ?? meetings.filter((m) => m.courseCode && m.courseCode !== "UNKNOWN")[0] ?? null;
+}
+
+/** The meeting to anchor on for a course: next upcoming, else most recent. */
+function pickCourseMeeting(
+  meetings: ClassMeeting[],
+  courseCode: string,
+  now: number,
+): ClassMeeting | null {
+  const mine = meetings
+    .filter((m) => m.courseCode === courseCode)
+    .sort((a, b) => a.start.localeCompare(b.start));
+  return mine.find((m) => new Date(m.end).getTime() > now) ?? mine[mine.length - 1] ?? null;
 }
 
 export default function RoomsPage() {
+  const schedule = useSchedule();
   const [prefs, setPrefs] = useState<RoomPrefs>({
     examUrgency: 0.4,
     includeCoffeeShops: true,
     maxExtraWalkingMinutes: 10,
   });
   const [recurring, setRecurring] = useState(false);
-  const [meetings, setMeetings] = useState<ClassMeeting[]>([]);
   const [originChoice, setOriginChoice] = useState<OriginChoice>(DEFAULT_ORIGIN);
   const [gpsPoint, setGpsPoint] = useState<LatLng | null>(null);
   const [gpsStatus, setGpsStatus] = useState<"idle" | "locating" | "error">("idle");
   const [gpsError, setGpsError] = useState("");
   const [now, setNow] = useState(0);
-  const [demo, setDemo] = useState(false);
   const [query, setQuery] = useState("");
   const [searching, setSearching] = useState(false);
   const [searchMethod, setSearchMethod] = useState<SearchMethod | null>(null);
   const [matches, setMatches] = useState<SpaceMatch[]>([]);
   const [booking, setBooking] = useState<StudyRecommendation | null>(null);
 
+  const meetings = schedule.meetings;
+  const isDemoData = schedule.origin === "demo";
+
   useEffect(() => {
     const timer = window.setTimeout(() => {
       setPrefs(getRoomPrefs());
-      setDemo(isDemoMode());
       setRecurring(localStorage.getItem(STORAGE_KEYS.recurringAutobook) === "true");
-      setMeetings(
-        mergeSchedule({
-          gcal: getGcalEvents(),
-          coursetable: getCourseTableEvents(),
-          demo: isDemoMode(),
-          demoMeetings: DEMO_MEETINGS,
-        }),
-      );
       setOriginChoice(readJson<OriginChoice>(STORAGE_KEYS.origin, DEFAULT_ORIGIN));
       setNow(Date.now());
     }, 0);
@@ -134,38 +143,58 @@ export default function RoomsPage() {
     if (choice.kind === "gps" && !gpsPoint) locate();
   }
 
+  // A saved course origin is stale once the schedule changes; fall back cleanly.
+  const activeChoice: OriginChoice = useMemo(() => {
+    if (
+      originChoice.kind === "course" &&
+      schedule.ready &&
+      !schedule.courses.some((c) => c.courseCode === originChoice.courseCode)
+    ) {
+      return DEFAULT_ORIGIN;
+    }
+    return originChoice;
+  }, [originChoice, schedule.ready, schedule.courses]);
+
   const nextClass = useMemo(() => pickNextClass(meetings, now), [meetings, now]);
-  const nextClassBuilding = useMemo(
-    () => findBuilding(nextClass?.location),
-    [nextClass],
+
+  const anchorMeeting = useMemo(() => {
+    if (activeChoice.kind === "course") {
+      return pickCourseMeeting(meetings, activeChoice.courseCode, now);
+    }
+    return nextClass;
+  }, [activeChoice, meetings, now, nextClass]);
+
+  const anchorBuilding = useMemo(
+    () => findBuilding(anchorMeeting?.location),
+    [anchorMeeting],
   );
 
   const origin: ResolvedOrigin | null = useMemo(() => {
     const fallback = getBuilding(DEFAULT_LANDMARK_ID)!;
-    if (originChoice.kind === "gps") {
+    if (activeChoice.kind === "gps") {
       return gpsPoint
         ? { label: "your location", detail: "GPS", point: gpsPoint }
         : null;
     }
-    if (originChoice.kind === "landmark") {
-      const b = getBuilding(originChoice.id) ?? fallback;
+    if (activeChoice.kind === "landmark") {
+      const b = getBuilding(activeChoice.id) ?? fallback;
       return { label: b.name, detail: b.address, point: b.point };
     }
-    if (nextClass && nextClassBuilding) {
+    if (anchorMeeting && anchorBuilding) {
       return {
-        label: `${nextClass.courseCode} at ${nextClassBuilding.name}`,
-        detail: `${formatWhen(nextClass.start)} · ${nextClass.location}`,
-        point: nextClassBuilding.point,
+        label: `${anchorMeeting.courseCode} at ${anchorBuilding.name}`,
+        detail: `${formatWhen(anchorMeeting.start)} · ${anchorMeeting.location}`,
+        point: anchorBuilding.point,
       };
     }
     return {
       label: fallback.name,
-      detail: nextClass
-        ? `Could not place "${nextClass.location ?? "unknown location"}" on the map; using ${fallback.name}`
+      detail: anchorMeeting
+        ? `Could not place "${anchorMeeting.location ?? "unknown location"}" on the map; using ${fallback.name}`
         : "No classes loaded; using a central landmark",
       point: fallback.point,
     };
-  }, [originChoice, gpsPoint, nextClass, nextClassBuilding]);
+  }, [activeChoice, gpsPoint, anchorMeeting, anchorBuilding]);
 
   const { primary, rest } = useMemo(
     () => recommendSpaces(prefs, origin?.point ?? null),
@@ -191,7 +220,7 @@ export default function RoomsPage() {
     if (!trimmed) return;
     const controller = new AbortController();
     const timer = window.setTimeout(() => {
-      searchSpaces(trimmed, allSpots, { isDemo: demo, signal: controller.signal })
+      searchSpaces(trimmed, allSpots, { isDemo: isDemoData, signal: controller.signal })
         .then((result) => {
           if (controller.signal.aborted) return;
           setMatches(result.matches);
@@ -209,7 +238,7 @@ export default function RoomsPage() {
       controller.abort();
       window.clearTimeout(timer);
     };
-  }, [query, allSpots, demo]);
+  }, [query, allSpots, isDemoData]);
 
   const searchActive = query.trim().length > 0;
 
@@ -233,10 +262,19 @@ export default function RoomsPage() {
     [searchActive, displayed, allSpots],
   );
   const highlightName = displayed[0]?.spot.name ?? primary.name;
-  const courseCodes = useMemo(
-    () => Array.from(new Set(meetings.map((m) => m.courseCode))).sort(),
-    [meetings],
-  );
+
+  // Next half-hour boundary, used as the default Autofill target. Derived from
+  // `now` (set in an effect) so it is stable between server and client render.
+  const nextSlotIso = useMemo(() => {
+    if (!now) return undefined;
+    const stepMs = LIBCAL_GRID_MINUTES * 60 * 1000;
+    return new Date(Math.ceil(now / stepMs) * stepMs).toISOString();
+  }, [now]);
+
+  function courseLabel(course: MyCourse): string {
+    const where = pickCourseMeeting(meetings, course.courseCode, now)?.location;
+    return where ? `${course.courseCode} · ${where}` : course.courseCode;
+  }
 
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-8 px-4 py-10">
@@ -253,8 +291,8 @@ export default function RoomsPage() {
       <div className="space-y-3 rounded-xl border bg-card p-4">
         <Label htmlFor="origin">Start walking from</Label>
         <div className="flex flex-wrap items-center gap-2">
-          <Select value={originToValue(originChoice)} onValueChange={chooseOrigin}>
-            <SelectTrigger id="origin" className="min-w-56">
+          <Select value={originToValue(activeChoice)} onValueChange={chooseOrigin}>
+            <SelectTrigger id="origin" className="min-w-64">
               <SelectValue placeholder="Choose a starting point" />
             </SelectTrigger>
             <SelectContent>
@@ -264,17 +302,35 @@ export default function RoomsPage() {
                   : "Next class (none loaded)"}
               </SelectItem>
               <SelectItem value="gps">My location (GPS)</SelectItem>
-              {LANDMARK_IDS.map((id) => {
-                const b = getBuilding(id)!;
-                return (
-                  <SelectItem key={id} value={`landmark:${id}`}>
-                    {b.name}
-                  </SelectItem>
-                );
-              })}
+              {schedule.courses.length > 0 ? (
+                <SelectGroup>
+                  <SelectLabel>
+                    {isDemoData ? "My courses (demo)" : "My courses"}
+                  </SelectLabel>
+                  {schedule.courses.map((course) => (
+                    <SelectItem
+                      key={course.courseCode}
+                      value={`course:${course.courseCode}`}
+                    >
+                      {courseLabel(course)}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+              ) : null}
+              <SelectGroup>
+                <SelectLabel>Landmarks</SelectLabel>
+                {LANDMARK_IDS.map((id) => {
+                  const b = getBuilding(id)!;
+                  return (
+                    <SelectItem key={id} value={`landmark:${id}`}>
+                      {b.name}
+                    </SelectItem>
+                  );
+                })}
+              </SelectGroup>
             </SelectContent>
           </Select>
-          {originChoice.kind === "gps" ? (
+          {activeChoice.kind === "gps" ? (
             <Button
               size="sm"
               variant="outline"
@@ -293,6 +349,14 @@ export default function RoomsPage() {
               ? gpsError
               : "Waiting for your location…"}
         </p>
+        {schedule.ready && schedule.courses.length === 0 ? (
+          <p className="text-xs text-muted-foreground">
+            <Link href="/connect" className="underline underline-offset-4">
+              Connect a calendar
+            </Link>{" "}
+            to search for rooms near each of your classes.
+          </p>
+        ) : null}
       </div>
 
       <SpaceSearchBox
@@ -380,13 +444,15 @@ export default function RoomsPage() {
             recurring={recurring}
             originLabel={origin?.label}
             match={match}
+            nextSlotIso={nextSlotIso}
             onBook={setBooking}
           />
         ))}
       </div>
       <BookAndAnnounceDialog
         spot={booking}
-        courses={courseCodes}
+        courses={schedule.courses}
+        defaultCourseCode={anchorMeeting?.courseCode ?? schedule.primaryCourseCode}
         onOpenChange={(open) => {
           if (!open) setBooking(null);
         }}

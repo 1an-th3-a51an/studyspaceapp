@@ -14,7 +14,9 @@ export type Building = {
 export type OriginChoice =
   | { kind: "next-class" }
   | { kind: "gps" }
-  | { kind: "landmark"; id: string };
+  | { kind: "landmark"; id: string }
+  /** Search from where one specific course on the user's schedule meets. */
+  | { kind: "course"; courseCode: string };
 
 export type ResolvedOrigin = {
   label: string;

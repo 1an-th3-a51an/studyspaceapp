@@ -3,7 +3,6 @@ import type {
   Deadline,
   ParsedSyllabus,
   StudyPool,
-  StudyRecommendation,
 } from "@/lib/types";
 
 export const DEMO_DISPLAY_NAME = "Handsome Dan";
@@ -66,47 +65,6 @@ export const DEMO_DEADLINES: Deadline[] = [
     title: "Unit 1 receptive quiz",
     due: "2026-09-19T12:00:00-04:00",
     source: "demo",
-  },
-];
-
-export const DEMO_RECOMMENDATIONS: StudyRecommendation[] = [
-  {
-    kind: "coffee",
-    name: "Common Grounds",
-    address: "276 York St",
-    walkingMinutes: 2,
-    lat: 41.31135,
-    lng: -72.93155,
-    capacity: 8,
-    description:
-      "Independent cafe on York Street in the Broadway shops, a short walk from HQ and Cross Campus. Espresso, pastries, and a handful of two-tops plus a window bar. Wifi and some outlets. Fine for a problem-set pair or a coffee meetup; too small and public for a six-person review session.",
-    tags: ["coffee", "food", "wifi", "outlets", "background noise", "pair", "york street", "near hq", "meetup"],
-  },
-  {
-    kind: "room",
-    name: "Bass Library Group Study L30A",
-    address: "110 Wall St",
-    walkingMinutes: 4,
-    bookingUrl: "https://schedule.yale.edu/space/113265",
-    lat: 41.3109,
-    lng: -72.928,
-    capacity: 6,
-    description:
-      "Reservable group study room on the lower level of Bass. Seats six, with power, wireless, an LCD display and laptop connectors, and a portable whiteboard you can roll in. Enclosed enough to talk through a pset. Food is not allowed. Book at schedule.yale.edu; Yale ID to swipe in.",
-    tags: ["group", "whiteboard", "monitor", "quiet", "enclosed", "reservable", "central campus", "no food", "bass"],
-  },
-  {
-    kind: "room",
-    name: "Bass Library C10F",
-    address: "110 Wall St",
-    walkingMinutes: 4,
-    bookingUrl: "https://schedule.yale.edu/space/128473",
-    lat: 41.31095,
-    lng: -72.9279,
-    capacity: 1,
-    description:
-      "ADA-accessible individual study room on the courtyard level of Bass, facing Thain Cafe. One desk with a lamp, power, and wireless. Students may book up to four hours once per day. Strictly solo — do not use this for a group.",
-    tags: ["solo", "quiet", "enclosed", "reservable", "outlets", "private", "accessible", "central campus", "bass"],
   },
 ];
 

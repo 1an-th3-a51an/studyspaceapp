@@ -11,7 +11,15 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000). Demo Mode loads Handsome Dan’s fall 2026 schedule (S&DS 2380, AMST 1197, ASL 1100) from `lib/demo/handsomeDan.ts` — no Canvas, no OAuth.
 
-Optional: set `OPENAI_API_KEY` for syllabus parsing and embedding search. Without it, those routes fall back to local/lexical logic. Queue matching is in-memory on the Next.js server (not a persistent database).
+Optional: set `OPENAI_API_KEY` for syllabus parsing and embedding search. Without it, those routes fall back to local/lexical logic.
+
+## Backend
+
+Live queues, hosted pools, and room-booking announcements go through Next.js API routes (`/api/queue`, `/api/pools`, `/api/seed-db`). Users are still just a `deviceId` in localStorage — no Canvas, no OAuth.
+
+If `FIREBASE_PROJECT_ID` + `FIREBASE_CLIENT_EMAIL` + `FIREBASE_PRIVATE_KEY` (or `FIREBASE_SERVICE_ACCOUNT`) are set, those collections persist in Firestore (`study_pools`, `queue_entries`, `room_bookings`). Without them the same logic runs in memory on the Node process, which is enough for a single-server demo. Seed DB writes Handsome Dan’s sample pools.
+
+Copy `.env.example` to `.env.local` to configure keys.
 
 ## Course codes
 

@@ -1,4 +1,4 @@
-import { DEMO_RECOMMENDATIONS } from "@/lib/demo/handsomeDan";
+import { STUDY_SPOTS } from "@/lib/spots";
 import { searchSpaces, type SpaceMatch } from "@/lib/spaceSearch";
 import type { StudyRecommendation } from "@/lib/types";
 
@@ -97,7 +97,7 @@ export async function POST(request: Request): Promise<Response> {
 
   const spots: StudyRecommendation[] = Array.isArray(body.spots)
     ? (body.spots as StudyRecommendation[])
-    : DEMO_RECOMMENDATIONS;
+    : STUDY_SPOTS;
 
   const lexical = searchSpaces(query, spots);
   const apiKey = process.env.OPENAI_API_KEY;
