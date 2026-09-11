@@ -1,17 +1,38 @@
+import { existsSync, readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { cert, getApps, initializeApp, type App } from "firebase-admin/app";
 import { getFirestore, type Firestore } from "firebase-admin/firestore";
 
 /**
  * Server-only Firestore. Identity stays a local deviceId — no Auth, no OAuth.
  *
- * Configure with either:
- *   FIREBASE_SERVICE_ACCOUNT   JSON string of a service-account key
+ * Configure with any one of:
+ *   FIREBASE_SERVICE_ACCOUNT_FILE  path to a downloaded service-account JSON
+ *                                  (default: ./firebase-service-account.json,
+ *                                  which is gitignored — just drop it there)
+ *   FIREBASE_SERVICE_ACCOUNT       JSON string of a service-account key
  * or the split vars:
  *   FIREBASE_PROJECT_ID
  *   FIREBASE_CLIENT_EMAIL
- *   FIREBASE_PRIVATE_KEY       (newlines as \n)
+ *   FIREBASE_PRIVATE_KEY           (newlines as \n)
  */
+const DEFAULT_KEY_FILE = "firebase-service-account.json";
+
+function keyFilePath(): string {
+  return resolve(process.cwd(), process.env.FIREBASE_SERVICE_ACCOUNT_FILE?.trim() || DEFAULT_KEY_FILE);
+}
+
+function readKeyFile(): string {
+  try {
+    const path = keyFilePath();
+    return existsSync(path) ? readFileSync(path, "utf8") : "";
+  } catch {
+    return "";
+  }
+}
+
 export function isFirebaseConfigured(): boolean {
+  if (readKeyFile().trim()) return true;
   if (process.env.FIREBASE_SERVICE_ACCOUNT?.trim()) return true;
   return Boolean(
     process.env.FIREBASE_PROJECT_ID?.trim() &&
@@ -25,7 +46,7 @@ function serviceAccount(): {
   clientEmail: string;
   privateKey: string;
 } | null {
-  const raw = process.env.FIREBASE_SERVICE_ACCOUNT?.trim();
+  const raw = readKeyFile().trim() || process.env.FIREBASE_SERVICE_ACCOUNT?.trim();
   if (raw) {
     try {
       const parsed = JSON.parse(raw) as {
