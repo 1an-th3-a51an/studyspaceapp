@@ -112,7 +112,7 @@ function buildSnapshot(input: {
   bookings: RoomBooking[];
 }): QueueSnapshot {
   const similar = similarCourses(input.courseCode);
-  const adjacent = new Map(similar.map((c) => [c.courseCode, c.label]));
+  const similarByCode = new Map(similar.map((c) => [c.courseCode, c.label]));
   const queue = input.queue.filter((e) => e.courseCode === input.courseCode);
   return {
     serverTime: new Date(input.now).toISOString(),
@@ -122,10 +122,10 @@ function buildSnapshot(input: {
     myEntry: queue.find((e) => e.deviceId === input.deviceId) ?? null,
     pools: input.pools.filter((p) => p.courseCode === input.courseCode),
     bookings: input.bookings
-      .filter((b) => b.courseCode === input.courseCode || adjacent.has(b.courseCode))
+      .filter((b) => b.courseCode === input.courseCode || similarByCode.has(b.courseCode))
       .map((b) => ({
         ...b,
-        via: b.courseCode === input.courseCode ? undefined : adjacent.get(b.courseCode),
+        via: b.courseCode === input.courseCode ? undefined : similarByCode.get(b.courseCode),
       }))
       .sort((a, b) => a.start.localeCompare(b.start)),
   };
@@ -212,11 +212,8 @@ function normaliseState(input: Partial<LocalState> | null | undefined): LocalSta
 }
 
 /**
- * The default backend: all state in one process, mirrored to a JSON snapshot
- * after every write so a restart does not wipe the queue.
- *
- * Good enough for a single server. Firestore takes over when configured,
- * because this one cannot be shared across instances.
+ * Single-process fallback used only when Firebase credentials are missing.
+ * Two devices cannot share this store — configure Firestore for that.
  */
 function createLocalStore(): LiveStore {
   const persistence = createPersistence<Partial<LocalState>>();

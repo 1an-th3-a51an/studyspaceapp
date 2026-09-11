@@ -27,7 +27,7 @@ type Body = {
  * Opt an address in to booking announcements for the courses on a schedule.
  *
  * Subscriptions are per-course so a booking can reach the host's class plus
- * adjacent classes without the app ever holding a Yale roster.
+ * courses with similar catalog descriptions, without holding a Yale roster.
  */
 export async function POST(request: Request): Promise<Response> {
   try {

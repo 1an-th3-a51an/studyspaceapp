@@ -3,16 +3,13 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 /**
- * Durable storage for the in-process store.
+ * Local fallback when Firebase env is missing.
  *
- * Firestore is the right backend for a multi-instance deployment, but needing
- * a service account before pools survive a restart made local development feel
- * broken. So the default backend now writes a small JSON snapshot to disk:
- * `next dev` restarts, deploys, and crashes all keep their pools.
- *
- * Candidate directories, in order: STUDYSPACE_DATA_DIR, ./.data, then the OS
- * temp dir. If none is writable we fall back to memory and say so, rather than
- * throwing on the first request.
+ * Two laptops share pools/queue/bookings only through Firestore
+ * (`getLiveStore` in liveStore.ts). This JSON snapshot is the single-process
+ * fallback so `next dev` still works without credentials. Candidate
+ * directories: STUDYSPACE_DATA_DIR, ./.data, then the OS temp dir. If none is
+ * writable we keep state in memory.
  */
 export type PersistenceKind = "file" | "memory";
 

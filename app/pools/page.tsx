@@ -232,6 +232,7 @@ export default function PoolsPage() {
       <SimilarCoursePools
         courseCode={activeCourse}
         refreshKey={refreshKey}
+        hideDemo={schedule.origin === "imported"}
         onPickCourse={chooseCourse}
         onJoin={(pool) => {
           setSelected(pool);

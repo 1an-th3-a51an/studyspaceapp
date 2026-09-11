@@ -8,8 +8,6 @@ import {
 } from "@/lib/geo";
 import type { RoomPrefs, StudyRecommendation } from "@/lib/types";
 
-const YALE_ROOM_URL = "https://schedule.yale.edu/space/113265";
-
 export type RankedSpot = StudyRecommendation & {
   directionsUrl?: string;
   /** Why this spot was placed where it is. */
@@ -36,13 +34,17 @@ function withDistances(
   });
 }
 
+function isBookable(spot: StudyRecommendation): boolean {
+  return Boolean(spot.bookingUrl);
+}
+
 /**
  * Pick where to study.
  *
- * Rule: the nearest bookable Yale room is the baseline. If coffee shops are
- * allowed, exam urgency is not extreme, and a coffee shop is at most
- * `maxExtraWalkingMinutes` further than that room, the nearest such coffee
- * shop wins. Everything else is listed by walking time.
+ * Rank bookable Yale rooms by walk time from the origin. Coffee shops may win
+ * only when they are allowed and within `maxExtraWalkingMinutes` of the
+ * nearest room. This does not claim a LibCal cell is free — Yale shows live
+ * availability on the room page.
  */
 export function recommendSpaces(
   prefs: RoomPrefs,
@@ -55,26 +57,22 @@ export function recommendSpaces(
       (a.distanceMeters ?? 0) - (b.distanceMeters ?? 0),
   );
 
-  const rooms = ranked.filter((s) => s.kind === "room");
+  const rooms = ranked.filter((s) => s.kind === "room" && isBookable(s));
   const coffee = ranked.filter((s) => s.kind === "coffee");
 
-  const nearestRoom =
-    rooms[0] ??
-    ({
-      kind: "room",
-      name: "Bass Library Group Study L30A",
-      walkingMinutes: 4,
-      bookingUrl: YALE_ROOM_URL,
-      capacity: 6,
-    } satisfies StudyRecommendation);
-
-  const coffeeBudget = nearestRoom.walkingMinutes + prefs.maxExtraWalkingMinutes;
+  const nearestRoom = rooms[0];
+  const coffeeBudget = nearestRoom
+    ? nearestRoom.walkingMinutes + prefs.maxExtraWalkingMinutes
+    : Number.POSITIVE_INFINITY;
   const coffeeAllowed = prefs.includeCoffeeShops && prefs.examUrgency < 0.85;
   const nearestCoffee = coffeeAllowed
     ? coffee.find((shop) => shop.walkingMinutes <= coffeeBudget)
     : undefined;
 
-  const primary = nearestCoffee ?? nearestRoom;
+  const primary = nearestCoffee ?? nearestRoom ?? ranked[0];
+  if (!primary) {
+    return { primary: decorateEmpty(), rest: [] };
+  }
 
   const decorate = (spot: StudyRecommendation): RankedSpot => {
     const dir =
@@ -83,20 +81,26 @@ export function recommendSpaces(
         : undefined;
     let reason: string;
     if (spot === primary) {
-      reason = nearestCoffee
-        ? `Closest coffee shop within ${prefs.maxExtraWalkingMinutes} extra min of the nearest room`
-        : !prefs.includeCoffeeShops
-          ? "Nearest bookable room (coffee shops off)"
-          : prefs.examUrgency >= 0.85
-            ? "Nearest bookable room (exam urgency is high)"
-            : "Nearest bookable room; no coffee shop within the walking budget";
+      if (nearestCoffee && spot === nearestCoffee) {
+        reason = `Closest coffee shop within ${prefs.maxExtraWalkingMinutes} extra min of the nearest reservable room`;
+      } else if (isBookable(spot)) {
+        reason =
+          "Nearest reservable room — Yale shows live availability on their page";
+      } else {
+        reason = "Nearest listed spot";
+      }
     } else if (spot.kind === "coffee") {
       reason =
         spot.walkingMinutes > coffeeBudget
-          ? `Over the walking budget (${coffeeBudget} min)`
+          ? `Over the walking budget (${Number.isFinite(coffeeBudget) ? coffeeBudget : "?"} min)`
           : "Coffee shop alternative";
+    } else if (isBookable(spot)) {
+      reason =
+        spot === nearestRoom
+          ? "Nearest reservable room — Yale shows live availability on their page"
+          : "Reservable room — Yale shows live availability on their page";
     } else {
-      reason = spot === nearestRoom ? "Nearest bookable room" : "Bookable room";
+      reason = "Listed spot";
     }
     return { ...spot, directionsUrl: dir, reason };
   };
@@ -110,4 +114,13 @@ export function recommendSpaces(
   }
 
   return { primary: decorate(primary), rest };
+}
+
+function decorateEmpty(): RankedSpot {
+  return {
+    kind: "room",
+    name: "No reservable rooms loaded",
+    walkingMinutes: 0,
+    reason: "Import Yale LibCal listings with npm run import:libcal",
+  };
 }

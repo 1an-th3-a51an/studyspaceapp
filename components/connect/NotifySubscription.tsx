@@ -32,7 +32,7 @@ export function NotifySubscription() {
   }, []);
 
   const courses = schedule.courses.map((c) => c.courseCode);
-  const adjacent = Array.from(
+  const similar = Array.from(
     new Set(courses.flatMap((c) => similarCourses(c, 3).map((s) => s.courseCode))),
   ).filter((c) => !courses.includes(c));
 
@@ -62,8 +62,8 @@ export function NotifySubscription() {
                 {code}
               </Badge>
             ))}
-            {adjacent.map((code) => (
-              <Badge key={code} variant="outline" title="Adjacent course">
+            {similar.map((code) => (
+              <Badge key={code} variant="outline" title="Similar catalog description">
                 {code}
               </Badge>
             ))}

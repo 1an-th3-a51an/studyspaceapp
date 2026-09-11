@@ -73,7 +73,7 @@ export type StudyRecommendation = {
   description?: string;
   /** Short feature tags: "quiet", "whiteboard", "outlets", "group", ... */
   tags?: string[];
-  /** How many people fit comfortably. */
+  /** Published seat count when Yale listed one. Omitted if unknown. */
   capacity?: number;
 };
 
@@ -96,7 +96,7 @@ export type QueueEntry = {
   poolId?: string;
 };
 
-/** "I booked a room, come study" announcement sent to a class + adjacent classes. */
+/** "I booked a room, come study" announcement sent to a class + similar catalog courses. */
 export type RoomBooking = {
   id: string;
   deviceId: string;
@@ -154,6 +154,6 @@ export type QueueSnapshot = {
   myEntry: QueueEntry | null;
   /** Pools formed by the matchmaker for this course. */
   pools: StudyPool[];
-  /** Bookings for this course and adjacent ones; `via` explains adjacency. */
+  /** Bookings for this course and similar-description ones; `via` explains the link. */
   bookings: (RoomBooking & { via?: string })[];
 };

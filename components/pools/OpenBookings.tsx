@@ -59,7 +59,7 @@ export function OpenBookings({
           Booked rooms you can join
         </h2>
         <span className="text-xs text-muted-foreground">
-          Announced to {courseCode} and adjacent courses
+          Announced to {courseCode} and courses with similar catalog descriptions
         </span>
       </div>
       <ul className="space-y-2">

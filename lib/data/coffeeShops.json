@@ -1,0 +1,70 @@
+{
+  "provenance": {
+    "source": "public business listings",
+    "label": "New Haven coffee shops near campus",
+    "detail": "Street addresses are the businesses' published locations. Coordinates are geocodes of those addresses, not surveyed entrances. Seat counts are unknown — do not treat walkingMinutes here as capacity.",
+    "generatedAt": "2026-09-11T20:00:00.000Z"
+  },
+  "shops": [
+    {
+      "id": "common-grounds",
+      "name": "Common Grounds",
+      "address": "276 York St, New Haven, CT 06511",
+      "lat": 41.3114,
+      "lng": -72.93155,
+      "coordSource": "address",
+      "description": "Independent cafe on York Street in the Broadway shops. Espresso, pastries, two-tops and a window bar. Wifi and some outlets. Seat count is not published.",
+      "tags": ["coffee", "food", "wifi", "outlets", "york street", "meetup"]
+    },
+    {
+      "id": "atticus",
+      "name": "Atticus Bookstore Cafe",
+      "address": "1082 Chapel St, New Haven, CT 06510",
+      "lat": 41.30835,
+      "lng": -72.9307,
+      "coordSource": "address",
+      "description": "Bookstore cafe on Chapel Street across from the Yale University Art Gallery. Counter seating and a communal table. Seat count is not published.",
+      "tags": ["coffee", "food", "books", "chapel street", "meetup"]
+    },
+    {
+      "id": "book-trader",
+      "name": "Book Trader Cafe",
+      "address": "1140 Chapel St, New Haven, CT 06510",
+      "lat": 41.30785,
+      "lng": -72.92885,
+      "coordSource": "address",
+      "description": "Used-bookstore cafe on Chapel Street with indoor tables and a courtyard when it is warm. Seat count is not published.",
+      "tags": ["coffee", "food", "books", "chapel street", "meetup"]
+    },
+    {
+      "id": "blue-state-broadway",
+      "name": "Blue State Coffee",
+      "address": "84 Broadway, New Haven, CT 06511",
+      "lat": 41.31195,
+      "lng": -72.932,
+      "coordSource": "address",
+      "description": "Cafe on Broadway near York. Published address 84 Broadway. Seat count is not published.",
+      "tags": ["coffee", "food", "broadway", "meetup"]
+    },
+    {
+      "id": "willoughbys-church",
+      "name": "Willoughby's Coffee & Tea",
+      "address": "258 Church St, New Haven, CT 06510",
+      "lat": 41.30755,
+      "lng": -72.9254,
+      "coordSource": "address",
+      "description": "Coffee roaster on Church Street. Published address 258 Church St. Seat count is not published.",
+      "tags": ["coffee", "church street", "meetup"]
+    },
+    {
+      "id": "koffee-audubon",
+      "name": "Koffee?",
+      "address": "104 Audubon St, New Haven, CT 06510",
+      "lat": 41.3128,
+      "lng": -72.9218,
+      "coordSource": "address",
+      "description": "Cafe on Audubon Street. Published address 104 Audubon St. Seat count is not published.",
+      "tags": ["coffee", "audubon", "meetup"]
+    }
+  ]
+}

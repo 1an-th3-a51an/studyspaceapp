@@ -85,7 +85,6 @@ export default function RoomsPage() {
     includeCoffeeShops: true,
     maxExtraWalkingMinutes: 10,
   });
-  const [recurring, setRecurring] = useState(false);
   const [originChoice, setOriginChoice] = useState<OriginChoice>(DEFAULT_ORIGIN);
   const [gpsPoint, setGpsPoint] = useState<LatLng | null>(null);
   const [gpsStatus, setGpsStatus] = useState<"idle" | "locating" | "error">("idle");
@@ -103,7 +102,6 @@ export default function RoomsPage() {
   useEffect(() => {
     const timer = window.setTimeout(() => {
       setPrefs(getRoomPrefs());
-      setRecurring(localStorage.getItem(STORAGE_KEYS.recurringAutobook) === "true");
       setOriginChoice(readJson<OriginChoice>(STORAGE_KEYS.origin, DEFAULT_ORIGIN));
       setNow(Date.now());
     }, 0);
@@ -263,8 +261,7 @@ export default function RoomsPage() {
   );
   const highlightName = displayed[0]?.spot.name ?? primary.name;
 
-  // Next half-hour boundary, used as the default Autofill target. Derived from
-  // `now` (set in an effect) so it is stable between server and client render.
+  // Next grid boundary, used only to put `?date=` on the Yale room link.
   const nextSlotIso = useMemo(() => {
     if (!now) return undefined;
     const stepMs = LIBCAL_GRID_MINUTES * 60 * 1000;
@@ -283,8 +280,10 @@ export default function RoomsPage() {
           Study spots
         </h1>
         <p className="text-sm text-muted-foreground">
-          Ranked by walking time from where you will be. Book a spot first, then
-          your class and adjacent classes hear about it on the Pools page.
+          Ranked by walking time from where you will be. The top reservable
+          room deep-links to its Yale page — Yale shows live availability
+          there. Then your class (and courses with similar catalog
+          descriptions) can hear about it on Pools.
         </p>
       </div>
 
@@ -413,20 +412,8 @@ export default function RoomsPage() {
           />
           <p className="text-xs text-muted-foreground">
             A coffee shop wins only if it is at most this much further than the
-            nearest bookable room.
+            nearest reservable room.
           </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Checkbox
-            id="recurring"
-            checked={recurring}
-            onCheckedChange={(checked) => {
-              const on = checked === true;
-              setRecurring(on);
-              localStorage.setItem(STORAGE_KEYS.recurringAutobook, String(on));
-            }}
-          />
-          <Label htmlFor="recurring">Recurring autobook (UI only)</Label>
         </div>
       </div>
 
@@ -441,7 +428,6 @@ export default function RoomsPage() {
             key={spot.name}
             recommendation={spot}
             primary={index === 0}
-            recurring={recurring}
             originLabel={origin?.label}
             match={match}
             nextSlotIso={nextSlotIso}
