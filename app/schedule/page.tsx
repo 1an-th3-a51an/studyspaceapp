@@ -21,10 +21,13 @@ export default function SchedulePage() {
   const [courseTable, setCourseTable] = useState<ClassMeeting[]>([]);
 
   useEffect(() => {
-    setDemo(isDemoMode());
-    setName(getDisplayName());
-    setGcal(getGcalEvents());
-    setCourseTable(getCourseTableEvents());
+    const timer = window.setTimeout(() => {
+      setDemo(isDemoMode());
+      setName(getDisplayName());
+      setGcal(getGcalEvents());
+      setCourseTable(getCourseTableEvents());
+    }, 0);
+    return () => window.clearTimeout(timer);
   }, []);
 
   const meetings = useMemo(

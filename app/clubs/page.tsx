@@ -11,8 +11,11 @@ export default function ClubsPage() {
   const [message, setMessage] = useState("");
 
   useEffect(() => {
-    const stored = localStorage.getItem(STORAGE_KEYS.clubSize);
-    if (stored) setSize(Number(stored));
+    const timer = window.setTimeout(() => {
+      const stored = localStorage.getItem(STORAGE_KEYS.clubSize);
+      if (stored) setSize(Number(stored));
+    }, 0);
+    return () => window.clearTimeout(timer);
   }, []);
 
   return (

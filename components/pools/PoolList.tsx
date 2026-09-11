@@ -24,17 +24,21 @@ export function PoolList({
   wired: boolean;
   onJoin: (pool: StudyPool) => void;
 }) {
+  const uniquePools = Array.from(
+    new Map(pools.map((pool) => [pool.id, pool])).values(),
+  );
+
   return (
     <div className="space-y-3">
       {!wired ? (
         <p className="text-sm text-muted-foreground">Seed DB not wired</p>
       ) : null}
-      {pools.length === 0 ? (
+      {uniquePools.length === 0 ? (
         <p className="text-sm text-muted-foreground">
           No pools for this course yet. Host one to get started.
         </p>
       ) : (
-        pools.map((pool) => (
+        uniquePools.map((pool) => (
           <Card key={pool.id}>
             <CardHeader>
               <div className="flex flex-wrap items-center gap-2">

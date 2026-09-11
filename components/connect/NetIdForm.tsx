@@ -9,7 +9,8 @@ export function NetIdForm() {
   const [netId, setNetIdState] = useState("");
 
   useEffect(() => {
-    setNetIdState(getNetId());
+    const timer = window.setTimeout(() => setNetIdState(getNetId()), 0);
+    return () => window.clearTimeout(timer);
   }, []);
 
   return (

@@ -31,9 +31,14 @@ export default function PoolsPage() {
   }, []);
 
   useEffect(() => {
-    void refresh(courseCode).catch((caught) => {
-      setError(caught instanceof Error ? caught.message : "Could not list pools");
-    });
+    const timer = window.setTimeout(() => {
+      void refresh(courseCode).catch((caught) => {
+        setError(
+          caught instanceof Error ? caught.message : "Could not list pools",
+        );
+      });
+    }, 0);
+    return () => window.clearTimeout(timer);
   }, [courseCode, refresh]);
 
   return (

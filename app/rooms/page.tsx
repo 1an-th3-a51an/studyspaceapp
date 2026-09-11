@@ -19,8 +19,13 @@ export default function RoomsPage() {
   const [recurring, setRecurring] = useState(false);
 
   useEffect(() => {
-    setPrefs(getRoomPrefs());
-    setRecurring(localStorage.getItem(STORAGE_KEYS.recurringAutobook) === "true");
+    const timer = window.setTimeout(() => {
+      setPrefs(getRoomPrefs());
+      setRecurring(
+        localStorage.getItem(STORAGE_KEYS.recurringAutobook) === "true",
+      );
+    }, 0);
+    return () => window.clearTimeout(timer);
   }, []);
 
   function update(next: RoomPrefs) {

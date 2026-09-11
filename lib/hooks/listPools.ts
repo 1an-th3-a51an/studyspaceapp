@@ -63,7 +63,7 @@ export async function hostPool(input: {
       createdAt: new Date().toISOString(),
     };
     const existing = readJson<StudyPool[]>(STORAGE_KEYS.localPools, []);
-    writeJson(STORAGE_KEYS.localPools, [...existing, pool]);
+    writeJson(STORAGE_KEYS.localPools, mergeById([existing, [pool]]));
     return { pool, wired: false };
   }
 }
@@ -85,9 +85,13 @@ export async function joinPool(input: {
         throw new Error("pool full");
       }
       const next = { ...current, memberCount: current.memberCount + 1 };
-      const copy = [...existing];
-      copy[localIndex] = next;
-      writeJson(STORAGE_KEYS.localPools, copy);
+      const withoutDuplicates = existing.filter(
+        (pool) => pool.id !== input.poolId,
+      );
+      writeJson(
+        STORAGE_KEYS.localPools,
+        mergeById([withoutDuplicates, [next]]),
+      );
       return { pool: next, wired: false };
     }
     const demo = DEMO_POOLS.find((pool) => pool.id === input.poolId);
@@ -96,7 +100,7 @@ export async function joinPool(input: {
       throw new Error("pool full");
     }
     const joined = { ...demo, memberCount: demo.memberCount + 1, isDemoSample: true };
-    writeJson(STORAGE_KEYS.localPools, [...existing, joined]);
+    writeJson(STORAGE_KEYS.localPools, mergeById([existing, [joined]]));
     return { pool: joined, wired: false };
   }
 }
