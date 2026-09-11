@@ -1,0 +1,264 @@
+{
+  "provenance": {
+    "source": "public business listings",
+    "label": "New Haven coffee shops near campus",
+    "detail": "Street addresses are the businesses' published locations. Coordinates are geocodes of those addresses, not surveyed entrances. Seat counts are unknown — do not treat walkingMinutes here as capacity. Blue State Coffee closed permanently in November 2022; its former Wall Street and York Street cafes are now Common Grounds.",
+    "generatedAt": "2026-09-12T00:00:00.000Z"
+  },
+  "shops": [
+    {
+      "id": "common-grounds",
+      "name": "Common Grounds",
+      "address": "276 York St, New Haven, CT 06511",
+      "lat": 41.3114,
+      "lng": -72.93155,
+      "coordSource": "address",
+      "description": "Independent cafe on York Street in the Broadway shops. Espresso, pastries, two-tops and a window bar. Wifi and some outlets. Seat count is not published.",
+      "tags": [
+        "coffee",
+        "food",
+        "wifi",
+        "outlets",
+        "york street",
+        "meetup"
+      ]
+    },
+    {
+      "id": "atticus",
+      "name": "Atticus Bookstore Cafe",
+      "address": "1082 Chapel St, New Haven, CT 06510",
+      "lat": 41.30835,
+      "lng": -72.9307,
+      "coordSource": "address",
+      "description": "Bookstore cafe on Chapel Street across from the Yale University Art Gallery. Counter seating and a communal table. Seat count is not published.",
+      "tags": [
+        "coffee",
+        "food",
+        "books",
+        "chapel street",
+        "meetup"
+      ]
+    },
+    {
+      "id": "book-trader",
+      "name": "Book Trader Cafe",
+      "address": "1140 Chapel St, New Haven, CT 06510",
+      "lat": 41.30785,
+      "lng": -72.92885,
+      "coordSource": "address",
+      "description": "Used-bookstore cafe on Chapel Street with indoor tables and a courtyard when it is warm. Seat count is not published.",
+      "tags": [
+        "coffee",
+        "food",
+        "books",
+        "chapel street",
+        "meetup"
+      ]
+    },
+    {
+      "id": "willoughbys-church",
+      "name": "Willoughby's Coffee & Tea",
+      "address": "258 Church St, New Haven, CT 06510",
+      "lat": 41.30755,
+      "lng": -72.9254,
+      "coordSource": "address",
+      "description": "Coffee roaster on Church Street. Published address 258 Church St. Seat count is not published.",
+      "tags": [
+        "coffee",
+        "church street",
+        "meetup"
+      ]
+    },
+    {
+      "id": "koffee-audubon",
+      "name": "Koffee?",
+      "address": "104 Audubon St, New Haven, CT 06510",
+      "lat": 41.3128,
+      "lng": -72.9218,
+      "coordSource": "address",
+      "description": "Cafe on Audubon Street. Published address 104 Audubon St. Seat count is not published.",
+      "tags": [
+        "coffee",
+        "audubon",
+        "meetup"
+      ]
+    },
+    {
+      "id": "common-grounds-wall",
+      "name": "Common Grounds (Wall St)",
+      "address": "84 Wall St, New Haven, CT 06511",
+      "lat": 41.31038,
+      "lng": -72.92558,
+      "coordSource": "address",
+      "hours": "7am-9pm",
+      "description": "Campus coffee shop in the old Blue State spot, steps from Cross Campus and Bass. Big communal tables, plenty of outlets, loud during rush. Fine for a pair on laptops.",
+      "tags": [
+        "coffee",
+        "food",
+        "wifi",
+        "outlets",
+        "loud",
+        "communal tables",
+        "central campus",
+        "laptops"
+      ]
+    },
+    {
+      "id": "willoughbys-york",
+      "name": "Willoughby's Coffee & Tea (York St)",
+      "address": "194 York St, New Haven, CT 06511",
+      "lat": 41.30896,
+      "lng": -72.93166,
+      "coordSource": "address",
+      "hours": "7am-6pm",
+      "description": "New Haven's roaster since 1985. Excellent pour-over, few seats and few outlets, so best for a quick caffeine stop or a short one-on-one meeting.",
+      "tags": [
+        "coffee",
+        "tea",
+        "quick",
+        "small",
+        "meeting",
+        "few seats",
+        "no outlets"
+      ]
+    },
+    {
+      "id": "poindexter",
+      "name": "Poindexter Coffee",
+      "address": "1151 Chapel St, New Haven, CT 06511",
+      "lat": 41.3088,
+      "lng": -72.9326,
+      "coordSource": "address",
+      "hours": "6:30am-6pm",
+      "description": "Hotel-lobby cafe inside the Graduate by Hilton with generous study seating, breakfast, and a calmer vibe than the student cafes. Reliable outlets.",
+      "tags": [
+        "coffee",
+        "food",
+        "wifi",
+        "outlets",
+        "calm",
+        "lobby",
+        "chapel street",
+        "laptops",
+        "spacious"
+      ]
+    },
+    {
+      "id": "olmo",
+      "name": "Olmo",
+      "address": "93 Whitney Ave, New Haven, CT 06510",
+      "lat": 41.31195,
+      "lng": -72.92222,
+      "coordSource": "address",
+      "hours": "7am-3pm",
+      "description": "New Haven-style bagel shop with a serious coffee program and cold brew. Quick and close to Hillhouse and Audubon; better for a breakfast meeting than a long session.",
+      "tags": [
+        "coffee",
+        "food",
+        "bagels",
+        "quick",
+        "breakfast",
+        "whitney ave",
+        "near science hill",
+        "meeting"
+      ]
+    },
+    {
+      "id": "motw",
+      "name": "MOTW Coffee and Pastries",
+      "address": "296 Crown St, New Haven, CT 06510",
+      "lat": 41.30649,
+      "lng": -72.93109,
+      "coordSource": "address",
+      "hours": "8am-8pm",
+      "description": "Bright specialty coffee and Arabic pastry cafe downtown with housemade chai. Welcoming for laptops, a few blocks south of Chapel.",
+      "tags": [
+        "coffee",
+        "food",
+        "chai",
+        "bright",
+        "wifi",
+        "downtown",
+        "laptops",
+        "calm"
+      ]
+    },
+    {
+      "id": "arwa",
+      "name": "Arwa Yemeni Coffee",
+      "address": "335 Orange St, New Haven, CT 06510",
+      "lat": 41.31126,
+      "lng": -72.91975,
+      "coordSource": "address",
+      "hours": "8am-midnight",
+      "description": "Yemeni coffee house with spiced drinks and honey bread and a dedicated study-friendly room. Open late, near the Green and the Law School.",
+      "tags": [
+        "coffee",
+        "tea",
+        "food",
+        "late night",
+        "study room",
+        "wifi",
+        "downtown",
+        "calm"
+      ]
+    },
+    {
+      "id": "cafe-romeo",
+      "name": "Cafe Romeo",
+      "address": "534 Orange St, New Haven, CT 06511",
+      "lat": 41.3149,
+      "lng": -72.91745,
+      "coordSource": "address",
+      "hours": "7am-6pm",
+      "description": "East Rock neighborhood cafe with pastries, sandwiches, and a loyal grad-student crowd. Longer walk from campus; quieter on weekday afternoons.",
+      "tags": [
+        "coffee",
+        "food",
+        "east rock",
+        "wifi",
+        "calm",
+        "grad students",
+        "far"
+      ]
+    },
+    {
+      "id": "coffee-pedaler",
+      "name": "The Coffee Pedaler",
+      "address": "605 East St, New Haven, CT 06511",
+      "lat": 41.31601,
+      "lng": -72.90875,
+      "coordSource": "address",
+      "hours": "7am-4pm",
+      "description": "Specialty cafe east of downtown known for careful espresso and pour-over, welcoming to laptop workers. A real walk from central campus.",
+      "tags": [
+        "coffee",
+        "specialty",
+        "wifi",
+        "laptops",
+        "calm",
+        "far",
+        "east rock"
+      ]
+    },
+    {
+      "id": "ero",
+      "name": "ERO Cafe",
+      "address": "44 Olive St, New Haven, CT 06511",
+      "lat": 41.30294,
+      "lng": -72.92069,
+      "coordSource": "address",
+      "hours": "8am-4pm",
+      "description": "Wooster Square cafe next to Sally's with creative matcha drinks and breakfast. Cozy, small; better for a break than a marathon.",
+      "tags": [
+        "coffee",
+        "matcha",
+        "food",
+        "wooster square",
+        "small",
+        "cozy",
+        "far"
+      ]
+    }
+  ]
+}

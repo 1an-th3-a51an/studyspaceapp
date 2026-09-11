@@ -2,9 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { CalendarCheck } from "lucide-react";
+import { ExternalLink } from "lucide-react";
 import { DebouncedSubmitButton } from "@/components/shared/DebouncedSubmitButton";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -35,11 +34,10 @@ import {
 import { announceJoin } from "@/lib/joinBanner";
 import { bookingsToday, HEAVY_BOOKING_THRESHOLD, recordBooking } from "@/lib/karma";
 import { readTune } from "@/lib/tune";
-import { useLibcalAvailability } from "@/lib/hooks/libcalAvailability";
-import { selectionMessage, slotDeepLink, slotRequestForSpot, snapToGrid } from "@/lib/libcal";
+import { slotDeepLink, slotRequestForSpot, snapToGrid } from "@/lib/libcal";
 import { failsProfanityCheck } from "@/lib/profanity";
 import { subscribeToCourses } from "@/lib/hooks/subscribe";
-import { findSpot, resolveBookingCapacity } from "@/lib/spots";
+import { findSpot, resolveBookingCapacity, UNKNOWN_SPOT_MAX_CAPACITY } from "@/lib/spots";
 import type { MyCourse, StudyRecommendation } from "@/lib/types";
 
 function nextHourLocal(): string {
@@ -74,8 +72,15 @@ export function BookAndAnnounceDialog({
   const [error, setError] = useState("");
 
   const registrySpot = spot ? findSpot(spot.name) : undefined;
-  const published = registrySpot?.capacitySource === "schedule.yale.edu";
-  const roomCapacity = registrySpot?.capacity ?? spot?.capacity ?? 4;
+  const published =
+    registrySpot?.capacitySource === "schedule.yale.edu" &&
+    typeof registrySpot.capacity === "number"
+      ? registrySpot.capacity
+      : undefined;
+  const maxSeats =
+    published !== undefined
+      ? Math.min(published, UNKNOWN_SPOT_MAX_CAPACITY)
+      : UNKNOWN_SPOT_MAX_CAPACITY;
 
   useEffect(() => {
     if (!spot) return;
@@ -85,20 +90,19 @@ export function BookAndAnnounceDialog({
       setCourse(defaultCourseCode || courses[0]?.courseCode || "custom");
       setStart(nextHourLocal());
       const preferred = readTune().preferredGroupSize;
-      setSeats(String(preferred ? Math.max(1, Math.min(roomCapacity, preferred)) : roomCapacity));
+      setSeats(String(Math.max(1, Math.min(maxSeats, preferred ?? 2))));
       setError("");
     }, 0);
     return () => window.clearTimeout(timer);
-  }, [spot, courses, defaultCourseCode, roomCapacity]);
+  }, [spot, courses, defaultCourseCode, maxSeats]);
 
   const resolvedCourse = normalizeCourseCode(course === "custom" ? customCourse : course);
-  const adjacent = resolvedCourse ? similarCourses(resolvedCourse, 4) : [];
+  const similar = resolvedCourse ? similarCourses(resolvedCourse, 4) : [];
   const isRoom = spot?.kind === "room";
 
-  // Seat options never exceed the room. A one-person room offers only "1".
   const seatOptions = useMemo(
-    () => Array.from({ length: Math.max(1, roomCapacity) }, (_, i) => i + 1),
-    [roomCapacity],
+    () => Array.from({ length: Math.max(1, maxSeats) }, (_, i) => i + 1),
+    [maxSeats],
   );
 
   const startIso = useMemo(() => {
@@ -106,26 +110,10 @@ export function BookAndAnnounceDialog({
     return Number.isNaN(ms) ? "" : new Date(ms).toISOString();
   }, [start]);
 
-  const requestedSlot = useMemo(() => {
-    if (!registrySpot || !registrySpot.bookingUrl || !startIso) return null;
-    return slotRequestForSpot(registrySpot, startIso);
-  }, [registrySpot, startIso]);
-
-  const { availability, checking: checkingSlot } = useLibcalAvailability(requestedSlot);
-
-  const slot = useMemo(() => {
-    if (!requestedSlot) return null;
-    const request = availability?.startIso
-      ? { ...requestedSlot, startIso: availability.startIso }
-      : requestedSlot;
-    return {
-      request,
-      url: slotDeepLink(request),
-      message: selectionMessage(request),
-      requestedMessage: selectionMessage(requestedSlot),
-      shifted: Boolean(availability?.shifted),
-    };
-  }, [requestedSlot, availability]);
+  const yaleUrl = useMemo(() => {
+    if (!registrySpot || !registrySpot.bookingUrl || !startIso) return spot?.bookingUrl;
+    return slotDeepLink(slotRequestForSpot(registrySpot, startIso)) ?? spot?.bookingUrl;
+  }, [registrySpot, startIso, spot?.bookingUrl]);
 
   async function submit() {
     if (!spot) return;
@@ -138,21 +126,16 @@ export function BookAndAnnounceDialog({
     setError("");
     persistDisplayName(name.trim());
 
-    // Open Yale's booking grid on the right day synchronously so popup
-    // blockers allow it. The user clicks the green slot themselves.
-    const target = slot?.url ?? spot.bookingUrl;
-    if (target) window.open(target, "_blank", "noopener,noreferrer");
+    if (yaleUrl) window.open(yaleUrl, "_blank", "noopener,noreferrer");
 
     try {
-      // Subscribing first means the host's own booking email goes out to a
-      // list that already includes everyone else who opted in.
       if (email.trim()) {
         setNotifyEmail(email.trim());
         const codes = Array.from(
           new Set([
             resolvedCourse,
             ...courses.map((c) => c.courseCode),
-            ...adjacent.map((a) => a.courseCode),
+            ...similar.map((a) => a.courseCode),
           ]),
         ).filter((c) => isCanonicalCourseCode(c));
         await subscribeToCourses({
@@ -166,8 +149,8 @@ export function BookAndAnnounceDialog({
         courseCode: resolvedCourse,
         displayName: name.trim(),
         spotName: spot.name,
-        bookingUrl: spot.bookingUrl,
-        start: snapToGrid(slot?.request.startIso ?? startIso),
+        bookingUrl: yaleUrl ?? spot.bookingUrl,
+        start: snapToGrid(startIso),
         capacity: Number(seats),
       });
 
@@ -175,10 +158,7 @@ export function BookAndAnnounceDialog({
       const notified = booking.notified;
       const karma = recordBooking(booking.spotName);
       const lastDelta = karma.events[0]?.delta ?? 0;
-      const karmaNote =
-        lastDelta < 0
-          ? ` · ${lastDelta} karma (heavy booking day)`
-          : " · +2 karma";
+      const karmaNote = lastDelta < 0 ? ` · ${lastDelta} karma (heavy booking day)` : " · +2 karma";
       announceJoin({
         title: `You booked ${booking.spotName}`,
         detail:
@@ -205,11 +185,11 @@ export function BookAndAnnounceDialog({
           </DialogTitle>
           <DialogDescription>
             {isRoom
-              ? "Opens Yale's booking grid on the right day with the earliest open slot highlighted, then tells your class you have a room."
+              ? "Opens the Yale library page for this room on the date you pick. Yale shows live availability there. Then your class hears you have a room."
               : "Tells your class you will be here. No booking needed."}{" "}
             Classmates in {resolvedCourse || "your course"}
-            {adjacent.length > 0
-              ? ` and ${adjacent.map((a) => a.courseCode).join(", ")}`
+            {similar.length > 0
+              ? ` and courses with similar catalog descriptions (${similar.map((a) => a.courseCode).join(", ")})`
               : ""}{" "}
             see it on the Pools page, and subscribers get an email.
           </DialogDescription>
@@ -261,7 +241,7 @@ export function BookAndAnnounceDialog({
               />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="book-cap">Seats</Label>
+              <Label htmlFor="book-cap">Seats in this pool</Label>
               <Select value={seats} onValueChange={setSeats}>
                 <SelectTrigger id="book-cap" className="w-full">
                   <SelectValue />
@@ -275,29 +255,30 @@ export function BookAndAnnounceDialog({
                 </SelectContent>
               </Select>
               <p className="text-xs text-muted-foreground">
-                {published
-                  ? `schedule.yale.edu lists ${roomCapacity} seat${roomCapacity === 1 ? "" : "s"}; the pool cannot exceed that.`
-                  : `Fits about ${roomCapacity}.`}
+                {published !== undefined
+                  ? `schedule.yale.edu lists ${published} seat${published === 1 ? "" : "s"}${
+                      published > UNKNOWN_SPOT_MAX_CAPACITY
+                        ? `; the pool stays at most ${UNKNOWN_SPOT_MAX_CAPACITY}.`
+                        : "; the pool cannot exceed that."
+                    }`
+                  : "Yale does not publish a seat count. This is how many classmates you are inviting, not a claimed room size."}
               </p>
             </div>
           </div>
 
-          {slot ? (
+          {yaleUrl ? (
             <div className="space-y-2 rounded-lg border bg-muted/40 p-3">
-              <div className="flex flex-wrap items-center gap-2">
-                <Badge variant="secondary" className="gap-1.5 font-normal">
-                  <CalendarCheck className="size-3" aria-hidden />
-                  Live availability
-                </Badge>
-                <code className="text-xs">{checkingSlot ? "Checking Yale…" : slot.message}</code>
-              </div>
               <p className="text-xs text-muted-foreground">
-                {checkingSlot
-                  ? "Checking Yale for red (booked) vs green (open) cells…"
-                  : slot.shifted
-                    ? `${slot.requestedMessage} is already booked on schedule.yale.edu. The earliest open slot is shown above; the announcement uses that time.`
-                    : "That slot shows as open on schedule.yale.edu right now. Book & announce opens the grid there; click the green cell to confirm."}
+                StudySpace sends you to this room&apos;s Yale page
+                {startIso ? " with the date filled in" : ""}. It does not click a
+                timeslot and does not claim a green cell is free.
               </p>
+              <Button size="sm" variant="outline" asChild>
+                <a href={yaleUrl} target="_blank" rel="noopener noreferrer">
+                  <ExternalLink className="size-3.5" />
+                  Open Yale page
+                </a>
+              </Button>
             </div>
           ) : null}
 
@@ -332,7 +313,7 @@ export function BookAndAnnounceDialog({
             Cancel
           </Button>
           <DebouncedSubmitButton onSubmit={submit}>
-            {isRoom ? "Book & announce" : "Announce"}
+            {isRoom ? "Open Yale page & announce" : "Announce"}
           </DebouncedSubmitButton>
         </DialogFooter>
       </DialogContent>

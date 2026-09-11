@@ -4,8 +4,8 @@ import { findSpot } from "@/lib/spots";
 import type { BookingNotifyResult, CourseSubscription, RoomBooking } from "@/lib/types";
 
 /**
- * Who hears about a booking: the host's class first, then adjacent classes
- * from the course-similarity graph.
+ * Who hears about a booking: the host's class first, then courses with
+ * similar catalog descriptions.
  *
  * This is opt-in rather than a class roster. The app has no Yale directory
  * access and no OAuth, so "everyone in the class" means everyone who put that
@@ -57,7 +57,7 @@ export function composeBookingEmail(booking: RoomBooking): {
   };
 }
 
-/** Email a booking to everyone subscribed to its course or an adjacent one. */
+/** Email a booking to everyone subscribed to its course or a similar-description one. */
 export async function notifyBooking(
   booking: RoomBooking,
   subscribers: CourseSubscription[],

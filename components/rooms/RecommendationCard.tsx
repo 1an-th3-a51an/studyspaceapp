@@ -1,6 +1,5 @@
-import { MapPin, Megaphone, Navigation } from "lucide-react";
+import { ExternalLink, MapPin, Megaphone, Navigation } from "lucide-react";
 import { ActivityMeter } from "@/components/rooms/ActivityMeter";
-import { LiveAvailability } from "@/components/rooms/LiveAvailability";
 import type { ActivityEstimate } from "@/lib/activity";
 import { Button } from "@/components/ui/button";
 import {
@@ -13,7 +12,9 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { formatDistance } from "@/lib/geo";
+import { slotDeepLink, slotRequestForSpot } from "@/lib/libcal";
 import type { RankedSpot } from "@/lib/recommendations";
+import { findSpot } from "@/lib/spots";
 
 export type CardMatch = {
   /** 0..1 relative similarity to the search query. */
@@ -25,7 +26,6 @@ export type CardMatch = {
 export function RecommendationCard({
   recommendation,
   primary,
-  recurring,
   originLabel,
   match,
   nextSlotIso,
@@ -34,24 +34,29 @@ export function RecommendationCard({
 }: {
   recommendation: RankedSpot;
   primary?: boolean;
-  recurring: boolean;
   originLabel?: string;
   match?: CardMatch;
-  /**
-   * The start the live availability check targets, as an ISO string. Computed
-   * on the client by the page so the server and first client render agree.
-   */
+  /** ISO start used only to put `?date=` on the Yale room link. */
   nextSlotIso?: string;
   /** Book (or meet) here and announce it to classmates. */
   onBook?: (spot: RankedSpot) => void;
-  /** Estimated busyness right now. */
+  /** Estimated busyness right now (labeled as an estimate). */
   activity?: ActivityEstimate;
 }) {
-  const url = recommendation.bookingUrl;
+  const registrySpot = findSpot(recommendation.name);
+  const url =
+    registrySpot && nextSlotIso && registrySpot.bookingUrl
+      ? slotDeepLink(slotRequestForSpot(registrySpot, nextSlotIso))
+      : recommendation.bookingUrl;
   const distance =
     typeof recommendation.distanceMeters === "number"
       ? formatDistance(recommendation.distanceMeters)
       : null;
+  const publishedCapacity =
+    registrySpot?.capacitySource === "schedule.yale.edu" &&
+    typeof registrySpot.capacity === "number"
+      ? registrySpot.capacity
+      : undefined;
 
   return (
     <Card className={primary ? "ring-2 ring-primary/30" : undefined}>
@@ -73,7 +78,6 @@ export function RecommendationCard({
           {distance ? <span>{distance}</span> : null}
           {originLabel ? <span>from {originLabel}</span> : null}
           {activity ? <ActivityMeter estimate={activity} /> : null}
-          <LiveAvailability spotName={recommendation.name} startIso={nextSlotIso} />
           {recommendation.address ? (
             <span className="inline-flex items-center gap-1">
               <MapPin className="size-3" />
@@ -97,15 +101,25 @@ export function RecommendationCard({
                 ))}
               </div>
             ) : null}
-            {typeof recommendation.capacity === "number" ? (
-              <p>Fits about {recommendation.capacity} {recommendation.capacity === 1 ? "person" : "people"}.</p>
+            {publishedCapacity !== undefined ? (
+              <p>
+                Yale lists {publishedCapacity}{" "}
+                {publishedCapacity === 1 ? "seat" : "seats"} on schedule.yale.edu.
+              </p>
             ) : null}
           </>
         ) : (
           <p>{recommendation.reason}.</p>
         )}
-        {recurring ? <p>Recurring autobook checked (UI only).</p> : null}
-        {!url ? <p>No booking page for this spot. Just walk over and announce it.</p> : null}
+        {url ? (
+          <p className="text-xs">
+            Opens the Yale space page
+            {nextSlotIso ? " on this date" : ""}. Live availability is on their
+            grid — StudySpace does not claim a slot is free.
+          </p>
+        ) : (
+          <p>No booking page for this spot. Just walk over and announce it.</p>
+        )}
       </CardContent>
       <CardFooter className="flex-wrap gap-2">
         {recommendation.directionsUrl ? (
@@ -129,7 +143,8 @@ export function RecommendationCard({
         {url ? (
           <Button size="sm" variant="outline" asChild>
             <a href={url} target="_blank" rel="noopener noreferrer">
-              Book on Yale
+              <ExternalLink className="size-3.5" />
+              Open Yale page
             </a>
           </Button>
         ) : null}

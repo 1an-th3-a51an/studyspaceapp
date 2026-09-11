@@ -1,31 +1,23 @@
 #!/usr/bin/env node
 /**
- * Build lib/data/courseGraph.json from a CourseTable export.
+ * Build lib/data/courseGraph.json from a CourseTable catalog export.
  *
+ *   node scripts/import-coursetable.mjs --catalog scripts/fixtures/catalog-202603.json --term "Fall 2026"
  *   node scripts/import-coursetable.mjs --fetch 202603 --term "Fall 2026"
- *   node scripts/import-coursetable.mjs --coenrollment path/to/coenrollment.csv
- *   node scripts/import-coursetable.mjs --catalog path/to/courses.json
- *
- * Two different kinds of input, because CourseTable exposes them differently.
  *
  * --fetch downloads the public catalog JSON CourseTable publishes at
  *   https://api.coursetable.com/api/catalog/public/{season}
- *   Season codes: YYYY + 01 spring / 02 summer / 03 fall. This is catalog
- *   adjacency (cross-listings, subject, level), not counted roster overlap.
+ *   Season codes: YYYY + 01 spring / 02 summer / 03 fall.
  *
- * --coenrollment expects counted overlap, which is the signal the UI really
- *   wants ("46% of S&DS 2380 students also took MATH 2220"). CourseTable does
- *   not publish this, so it has to come from a registrar or survey export. CSV
- *   with a header row and these columns in any order:
- *
- *     course_a,course_b,students_a,students_both
- *     S&DS 2380,MATH 2220,142,48
- *
- *   `share` is students_both / students_a. A `share` column may be given
- *   directly instead of the two counts.
+ * Similar-course edges are lexical overlap of catalog **descriptions** (and
+ * titles), not subject-neighbor adjacency and not co-enrollment. Cross-listings
+ * from `same_course_id` stay as equivalence groups.
  *
  * --catalog expects a CourseTable/Ferry catalog dump: a JSON array of listing
  *   objects, or the public catalog shape (courses with nested `listings`).
+ *
+ * Descriptions are written to lib/data/courseDescriptions.json so the client
+ * bundle does not ship every catalog paragraph.
  *
  * Everything is written with explicit provenance so the app can tell the user
  * where a link came from.
@@ -37,12 +29,15 @@ import { fileURLToPath } from "node:url";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const OUT = resolve(HERE, "../lib/data/courseGraph.json");
+const DESC_OUT = resolve(HERE, "../lib/data/courseDescriptions.json");
 const FIXTURE_DIR = resolve(HERE, "fixtures");
 
 /** Keep the graph small: the UI shows at most a handful per course. */
 const MAX_EDGES_PER_COURSE = 8;
-/** Below this, an edge is noise rather than a study-buddy signal. */
-const MIN_SHARE = 0.05;
+/** Below this cosine, description overlap is noise rather than a study-buddy signal. */
+const MIN_COSINE = 0.18;
+/** Ignore pairs that share only a couple of tokens. */
+const MIN_SHARED_TOKENS = 5;
 /** Public catalog seasons: YYYY + 01 spring / 02 summer / 03 fall. */
 const DEFAULT_SEASON = "202603";
 
@@ -54,7 +49,6 @@ function usage(message) {
 usage: node scripts/import-coursetable.mjs [options]
 
   --fetch [season]           Download CourseTable's public catalog (default ${DEFAULT_SEASON})
-  --coenrollment <file.csv>  Counted co-enrollment overlap (preferred when you have it)
   --catalog <file.json>      CourseTable / Ferry catalog dump already on disk
   --term <label>             Term label recorded in provenance, e.g. "Fall 2026"
   --dry-run                  Print a summary without writing the file
@@ -68,7 +62,6 @@ function parseArgs(argv) {
     const arg = argv[i];
     if (arg === "--help" || arg === "-h") usage();
     else if (arg === "--dry-run") out.dryRun = true;
-    else if (arg === "--coenrollment") out.coenrollment = argv[++i];
     else if (arg === "--catalog") out.catalog = argv[++i];
     else if (arg === "--term") out.term = argv[++i];
     else if (arg === "--fetch") {
@@ -81,8 +74,8 @@ function parseArgs(argv) {
       }
     } else usage(`unknown argument "${arg}"`);
   }
-  if (!out.coenrollment && !out.catalog && !out.fetch) {
-    usage("pass --fetch, --coenrollment, and/or --catalog");
+  if (!out.catalog && !out.fetch) {
+    usage("pass --fetch and/or --catalog");
   }
   return out;
 }
@@ -104,96 +97,6 @@ function normaliseCode(input) {
   const match = cleaned.match(CODE_RE);
   if (!match) return null;
   return `${match[1]} ${match[2]}`;
-}
-
-/** Minimal RFC 4180 reader: quoted fields, embedded commas, CRLF. */
-function parseCsv(text) {
-  const rows = [];
-  let row = [];
-  let field = "";
-  let quoted = false;
-
-  for (let i = 0; i < text.length; i += 1) {
-    const ch = text[i];
-    if (quoted) {
-      if (ch === '"') {
-        if (text[i + 1] === '"') {
-          field += '"';
-          i += 1;
-        } else {
-          quoted = false;
-        }
-      } else {
-        field += ch;
-      }
-      continue;
-    }
-    if (ch === '"') quoted = true;
-    else if (ch === ",") {
-      row.push(field);
-      field = "";
-    } else if (ch === "\n" || ch === "\r") {
-      if (ch === "\r" && text[i + 1] === "\n") i += 1;
-      row.push(field);
-      rows.push(row);
-      row = [];
-      field = "";
-    } else {
-      field += ch;
-    }
-  }
-  if (field !== "" || row.length > 0) {
-    row.push(field);
-    rows.push(row);
-  }
-  return rows.filter((r) => r.some((cell) => cell.trim() !== ""));
-}
-
-function csvRecords(text) {
-  const rows = parseCsv(text);
-  if (rows.length < 2) throw new Error("CSV needs a header row and at least one data row");
-  const header = rows[0].map((h) => h.trim().toLowerCase().replace(/\s+/g, "_"));
-  return rows.slice(1).map((cells) =>
-    Object.fromEntries(header.map((key, i) => [key, (cells[i] ?? "").trim()])),
-  );
-}
-
-function readCoEnrollment(file) {
-  const records = csvRecords(readFileSync(file, "utf8"));
-  const edges = new Map();
-  const skipped = [];
-
-  for (const [index, record] of records.entries()) {
-    const a = normaliseCode(record.course_a ?? record.course ?? record.from);
-    const b = normaliseCode(record.course_b ?? record.also_took ?? record.to);
-    if (!a || !b) {
-      skipped.push(`row ${index + 2}: unrecognised course code`);
-      continue;
-    }
-    if (a === b) continue;
-
-    let share = Number(record.share);
-    if (!Number.isFinite(share)) {
-      const both = Number(record.students_both ?? record.both ?? record.overlap);
-      const total = Number(record.students_a ?? record.total ?? record.enrollment_a);
-      if (!Number.isFinite(both) || !Number.isFinite(total) || total <= 0) {
-        skipped.push(`row ${index + 2}: no usable share or counts`);
-        continue;
-      }
-      share = both / total;
-    }
-    if (share <= 0 || share > 1) {
-      skipped.push(`row ${index + 2}: share ${share} outside (0, 1]`);
-      continue;
-    }
-    if (share < MIN_SHARE) continue;
-
-    if (!edges.has(a)) edges.set(a, new Map());
-    const existing = edges.get(a).get(b);
-    edges.get(a).set(b, existing === undefined ? share : Math.max(existing, share));
-  }
-
-  return { edges, skipped, rows: records.length };
 }
 
 /**
@@ -222,6 +125,7 @@ function flattenListings(parsed) {
           course_code: listing.course_code,
           school: listing.school,
           title: entry.title ?? listing.title,
+          description: entry.description ?? listing.description ?? "",
           same_course_id: entry.same_course_id ?? entry.course_id ?? listing.same_course_id,
           areas: entry.areas ?? listing.areas ?? [],
           skills: entry.skills ?? listing.skills ?? [],
@@ -234,12 +138,105 @@ function flattenListings(parsed) {
   return out;
 }
 
+const DESC_STOP = new Set([
+  "the", "and", "for", "that", "this", "with", "from", "are", "was", "were",
+  "will", "can", "may", "not", "but", "its", "their", "they", "them", "who",
+  "how", "what", "when", "which", "into", "than", "also", "such", "these",
+  "those", "have", "has", "had", "been", "being", "does", "did", "course",
+  "courses", "students", "student", "including", "include", "includes",
+  "introduction", "introductory", "seminar", "lecture", "discussion",
+  "required", "enrollment", "credit", "credits", "yale", "college", "fall",
+  "spring", "instructor", "permission", "prerequisite", "prerequisites",
+  "offered", "topics", "focus", "examines", "examine", "explore", "explores",
+  "weekly", "reading", "readings", "assignment", "assignments", "about",
+  "through", "between", "within", "using", "used", "well", "both", "each",
+  "other", "more", "most", "some", "any", "all", "one", "two", "three",
+  "first", "second", "year", "term", "class", "classes", "work", "works",
+]);
+
+function tokenizeDescription(text) {
+  return new Set(
+    String(text ?? "")
+      .toLowerCase()
+      .replace(/<[^>]+>/g, " ")
+      .replace(/&[a-z]+;/g, " ")
+      .split(/[^a-z0-9]+/)
+      .filter((t) => t.length >= 3 && !DESC_STOP.has(t)),
+  );
+}
+
+function sharedCount(a, b) {
+  let n = 0;
+  for (const t of a) if (b.has(t)) n += 1;
+  return n;
+}
+
+function idfCosine(a, b, idf) {
+  let dot = 0;
+  let na = 0;
+  let nb = 0;
+  for (const t of a) {
+    const w = idf.get(t) ?? 0;
+    na += w * w;
+    if (b.has(t)) dot += w * w;
+  }
+  for (const t of b) {
+    const w = idf.get(t) ?? 0;
+    nb += w * w;
+  }
+  if (!na || !nb) return 0;
+  return dot / Math.sqrt(na * nb);
+}
+
+/** Lexical overlap of catalog descriptions. Inverted index keeps it O(tokens). */
+function descriptionEdges(documents) {
+  const tokensByCode = new Map();
+  const postings = new Map();
+  for (const [code, text] of Object.entries(documents)) {
+    const tokens = tokenizeDescription(text);
+    if (tokens.size < 4) continue;
+    tokensByCode.set(code, tokens);
+    for (const token of tokens) {
+      if (!postings.has(token)) postings.set(token, new Set());
+      postings.get(token).add(code);
+    }
+  }
+
+  const nDocs = tokensByCode.size;
+  const idf = new Map();
+  for (const [token, posting] of postings) {
+    idf.set(token, Math.log((1 + nDocs) / (1 + posting.size)) + 1);
+  }
+
+  const edges = new Map();
+  for (const [code, tokens] of tokensByCode) {
+    const candidates = new Set();
+    for (const token of tokens) {
+      const posting = postings.get(token);
+      if (!posting) continue;
+      for (const other of posting) {
+        if (other !== code) candidates.add(other);
+      }
+    }
+    const scored = [];
+    for (const other of candidates) {
+      const theirs = tokensByCode.get(other);
+      if (!theirs || sharedCount(tokens, theirs) < MIN_SHARED_TOKENS) continue;
+      const score = idfCosine(tokens, theirs, idf);
+      if (score >= MIN_COSINE) scored.push([other, score]);
+    }
+    scored.sort((a, b) => b[1] - a[1]);
+    if (scored.length === 0) continue;
+    edges.set(code, new Map(scored.slice(0, MAX_EDGES_PER_COURSE)));
+  }
+  return edges;
+}
+
 function readCatalogData(listings) {
   const titles = {};
+  const descriptions = {};
   const sameCourse = new Map();
-  const byTag = new Map();
-  const subjects = new Map();
-  const schools = new Map();
+  const documents = {};
 
   for (const listing of listings) {
     const fromCode = listing.course_code ? normaliseCode(listing.course_code) : null;
@@ -251,31 +248,20 @@ function readCatalogData(listings) {
     const title = (listing.title ?? listing.course?.title ?? "").trim();
     if (title) titles[code] = title;
 
+    const description = String(listing.description ?? listing.course?.description ?? "")
+      .replace(/<[^>]+>/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+    if (description) descriptions[code] = description;
+
+    documents[code] = `${title}. ${description}`.trim();
+
     const groupId = listing.same_course_id ?? listing.course_id ?? listing.same_course_and_profs_id;
     if (groupId !== undefined && groupId !== null) {
       const key = String(groupId);
       if (!sameCourse.has(key)) sameCourse.set(key, new Set());
       sameCourse.get(key).add(code);
     }
-
-    for (const tag of [...(listing.areas ?? []), ...(listing.skills ?? [])]) {
-      const key = String(tag);
-      if (!byTag.has(key)) byTag.set(key, new Set());
-      byTag.get(key).add(code);
-    }
-
-    const match = code.match(CODE_RE);
-    if (!match) continue;
-    const [, subj, num] = match;
-    const level = num[0];
-    const school = String(listing.school ?? "").toUpperCase();
-    // Adjacency is most useful inside Yale College; graduate 3-digit codes
-    // sharing a subject would otherwise glue every MUS 5xx together.
-    if (school && school !== "YC") continue;
-    const key = `${subj} ${level}`;
-    if (!subjects.has(key)) subjects.set(key, new Set());
-    subjects.get(key).add(code);
-    schools.set(code, school || "YC");
   }
 
   const equivalence = [];
@@ -286,25 +272,15 @@ function readCatalogData(listings) {
     equivalence.push({ topic, courses: list });
   }
 
-  const edges = new Map();
-  const addEdge = (a, b, weight) => {
-    if (a === b) return;
-    if (!edges.has(a)) edges.set(a, new Map());
-    const prev = edges.get(a).get(b) ?? 0;
-    edges.get(a).set(b, Math.max(prev, weight));
+  const edges = descriptionEdges(documents);
+  return {
+    edges,
+    titles,
+    descriptions,
+    equivalence,
+    rows: listings.length,
+    skipped: [],
   };
-  for (const codes of subjects.values()) {
-    const list = Array.from(codes);
-    if (list.length > 40) continue;
-    for (const a of list) for (const b of list) addEdge(a, b, 0.3);
-  }
-  for (const codes of byTag.values()) {
-    const list = Array.from(codes);
-    if (list.length > 40) continue;
-    for (const a of list) for (const b of list) addEdge(a, b, 0.15);
-  }
-
-  return { edges, titles, equivalence, rows: listings.length, skipped: [] };
 }
 
 function readCatalog(file) {
@@ -339,7 +315,7 @@ function trimEdges(edges) {
     );
     edgeCount += top.length;
   }
-  return { coEnrollment: out, edgeCount };
+  return { descriptionSimilarity: out, edgeCount };
 }
 
 function readExistingGraph() {
@@ -370,69 +346,71 @@ async function main() {
 
   let edges = new Map();
   let titles = {};
+  let descriptions = {};
   let equivalence = [];
   const skipped = [];
-  let kind;
   let term = args.term ?? null;
 
   if (args.fetch) {
     const catalog = await fetchCatalog(args.fetch);
     edges = catalog.edges;
     titles = catalog.titles;
+    descriptions = catalog.descriptions ?? {};
     equivalence = catalog.equivalence;
-    kind = "coursetable-catalog";
     term = term ?? seasonLabel(args.fetch);
-    console.log(`catalog: ${catalog.rows} listings, ${Object.keys(titles).length} titles`);
+    console.log(
+      `catalog: ${catalog.rows} listings, ${Object.keys(titles).length} titles, ${Object.keys(descriptions).length} descriptions`,
+    );
   }
 
   if (args.catalog) {
     const catalog = readCatalog(resolve(process.cwd(), args.catalog));
     edges = catalog.edges;
     titles = catalog.titles;
+    descriptions = catalog.descriptions ?? {};
     equivalence = catalog.equivalence;
-    kind = "coursetable-catalog";
-    console.log(`catalog: ${catalog.rows} listings, ${Object.keys(titles).length} titles`);
+    console.log(
+      `catalog: ${catalog.rows} listings, ${Object.keys(titles).length} titles, ${Object.keys(descriptions).length} descriptions`,
+    );
   }
 
-  if (args.coenrollment) {
-    const counted = readCoEnrollment(resolve(process.cwd(), args.coenrollment));
-    edges = counted.edges;
-    skipped.push(...counted.skipped);
-    kind = "coursetable-coenrollment";
-    console.log(`co-enrollment: ${counted.rows} rows, ${counted.edges.size} source courses`);
-  }
-
-  // Cross-listings from this term plus the curated intro-track groups (linear
-  // algebra, intro micro, …) which the catalog cannot invent because nobody
-  // takes two of them.
+  // Cross-listings from this term. Do not invent extra "also-took" neighbors.
   equivalence = mergeEquivalence(equivalence, existing.equivalence ?? []);
   if (Object.keys(titles).length === 0) titles = existing.titles ?? {};
 
-  const { coEnrollment, edgeCount } = trimEdges(edges);
-  const courseCount = Object.keys(coEnrollment).length;
+  const { descriptionSimilarity, edgeCount } = trimEdges(edges);
+  const courseCount = Object.keys(descriptionSimilarity).length;
 
   if (courseCount === 0) {
-    console.error("error: no usable edges were produced; refusing to overwrite the graph");
+    console.error("error: no usable description-overlap edges; refusing to overwrite the graph");
     process.exit(1);
   }
 
+  for (const sample of ["CHEM 1610", "S&DS 2380", "AMST 1197"]) {
+    const neighbors = descriptionSimilarity[sample];
+    if (neighbors) {
+      console.log(
+        `${sample} neighbors: ${Object.entries(neighbors)
+          .map(([code, score]) => `${code} ${score}`)
+          .join(", ")}`,
+      );
+    } else {
+      console.log(`${sample} neighbors: (none)`);
+    }
+  }
+
   const provenance = {
-    kind,
-    label:
-      kind === "coursetable-coenrollment"
-        ? `CourseTable co-enrollment${term ? ` · ${term}` : ""}`
-        : `CourseTable catalog${term ? ` · ${term}` : ""}`,
+    kind: "coursetable-descriptions",
+    label: `CourseTable catalog descriptions${term ? ` · ${term}` : ""}`,
     detail:
-      kind === "coursetable-coenrollment"
-        ? "Shares are counted overlap between class rosters from a CourseTable export."
-        : "Links are catalog adjacency (same subject, level, area, or cross-listing), not measured enrollment overlap.",
+      "Similar courses share overlapping CourseTable catalog descriptions (token overlap). This is not co-enrollment or measured roster overlap. Cross-listings are same CourseTable listing.",
     generatedAt: new Date().toISOString(),
     termLabel: term,
     courseCount,
     edgeCount,
   };
 
-  const graph = { provenance, equivalence, coEnrollment, titles };
+  const graph = { provenance, equivalence, descriptionSimilarity, titles };
 
   if (skipped.length > 0) {
     console.warn(`skipped ${skipped.length} row(s):`);
@@ -441,7 +419,7 @@ async function main() {
   }
 
   console.log(
-    `graph: ${courseCount} courses, ${edgeCount} edges, ${equivalence.length} equivalence group(s)`,
+    `graph: ${courseCount} courses, ${edgeCount} edges, ${equivalence.length} equivalence group(s), ${Object.keys(descriptions).length} descriptions`,
   );
 
   if (args.dryRun) {
@@ -451,7 +429,13 @@ async function main() {
 
   mkdirSync(dirname(OUT), { recursive: true });
   writeFileSync(OUT, `${JSON.stringify(graph, null, 2)}\n`, "utf8");
+  writeFileSync(
+    DESC_OUT,
+    `${JSON.stringify({ provenance: { ...provenance, file: "courseDescriptions" }, descriptions }, null, 2)}\n`,
+    "utf8",
+  );
   console.log(`wrote ${OUT}`);
+  console.log(`wrote ${DESC_OUT}`);
 }
 
 main().catch((error) => {

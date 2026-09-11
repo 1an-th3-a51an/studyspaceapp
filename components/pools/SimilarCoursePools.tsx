@@ -21,12 +21,15 @@ export function SimilarCoursePools({
   refreshKey,
   onPickCourse,
   onJoin,
+  hideDemo = false,
 }: {
   courseCode: string;
   /** Bump to refetch (after hosting/joining/seeding). */
   refreshKey: number;
   onPickCourse: (code: string) => void;
   onJoin: (pool: StudyPool) => void;
+  /** When the user imported a real schedule, hide Handsome Dan sample pools. */
+  hideDemo?: boolean;
 }) {
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(false);
@@ -50,7 +53,10 @@ export function SimilarCoursePools({
       similar.map(async (s) => {
         try {
           const { pools } = await listPoolsByCourseCode(s.courseCode);
-          return { ...s, pools };
+          const visible = hideDemo
+            ? pools.filter((p) => !showDemoBadge(p))
+            : pools;
+          return { ...s, pools: visible };
         } catch {
           return { ...s, pools: [] };
         }
@@ -64,7 +70,7 @@ export function SimilarCoursePools({
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [courseCode, refreshKey]);
+  }, [courseCode, refreshKey, hideDemo]);
 
   if (rows.length === 0 && !loading) return null;
 
@@ -76,7 +82,7 @@ export function SimilarCoursePools({
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 className="inline-flex items-center gap-2 font-heading text-lg font-semibold">
           <GitBranch className="size-4" />
-          Pools in similar courses
+          Pools in courses with similar catalog descriptions
         </h2>
         <span
           className="text-xs text-muted-foreground"

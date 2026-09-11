@@ -13,13 +13,14 @@ export function LandingHero() {
           Yale study pooling
         </p>
         <h1 className="font-heading text-4xl leading-tight font-semibold tracking-tight sm:text-5xl">
-          Assemble your week, then book the closest open room.
+          Assemble your week, then walk to the nearest reservable room.
         </h1>
         <p className="max-w-xl text-base leading-7 text-muted-foreground">
           Drop in a CourseTable calendar and a Google Calendar export. StudySpace
-          merges them (GCal wins), suggests a nearby coffee shop or Bass Library
-          room, and lets you join a study pool — no Canvas, no OAuth, no Yale
-          password.
+          merges them (GCal wins), ranks reservable Yale rooms by walk time from
+          your next class, and opens that room&apos;s schedule.yale.edu page.
+          Yale shows live availability. Join a pool with people in the same
+          class — no Canvas, no OAuth, no Yale password.
         </p>
         <div className="flex flex-wrap items-center gap-3">
           <Button size="lg" asChild>
@@ -52,8 +53,9 @@ export function LandingHero() {
             <CardHeader className="px-0">
               <CardTitle>Least walking</CardTitle>
               <CardDescription>
-                Plans coffee shop meetups. Or redirects you to a study space
-                website so your spot is a click away.
+                Ranks reservable rooms by walking time and sends you to the
+                Yale page for the nearest one. Availability is live on Yale&apos;s
+                site, not claimed here.
               </CardDescription>
             </CardHeader>
           </CardContent>

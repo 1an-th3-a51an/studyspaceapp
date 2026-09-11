@@ -1,0 +1,214 @@
+{
+  "provenance": {
+    "source": "library.yale.edu/visit-and-study/places-study",
+    "label": "Yale walk-in study spaces",
+    "detail": "Open study floors and reading rooms that are not reservable on schedule.yale.edu. Coordinates are the building. No seat counts are claimed.",
+    "generatedAt": "2026-09-12T00:00:00.000Z"
+  },
+  "spaces": [
+    {
+      "id": "marx-young-family-study-room",
+      "name": "Marx Young Family Study Room",
+      "address": "Kline Tower, 219 Prospect St",
+      "lat": 41.3172,
+      "lng": -72.9226,
+      "coordSource": "building",
+      "hours": "24/7 with Yale ID",
+      "description": "Open 24-hour study floor on the Marx concourse with a media wall, flexible furniture, and lots of outlets. Walk in, no booking. Busy in the evening.",
+      "tags": [
+        "open",
+        "24/7",
+        "outlets",
+        "science hill",
+        "walk-in",
+        "bright",
+        "late night",
+        "busy"
+      ]
+    },
+    {
+      "id": "bass-courtyard-level",
+      "name": "Bass Courtyard Level",
+      "address": "110 Wall St",
+      "lat": 41.3109,
+      "lng": -72.928,
+      "coordSource": "building",
+      "hours": "Library hours",
+      "description": "Open study floor at Bass with natural light and varied seating, steps from Cross Campus. Walk in; the individual rooms here are first-come. Thain Café is right there.",
+      "tags": [
+        "open",
+        "natural light",
+        "walk-in",
+        "central campus",
+        "coffee nearby",
+        "busy",
+        "outlets"
+      ]
+    },
+    {
+      "id": "bass-lower-level",
+      "name": "Bass Lower Level",
+      "address": "110 Wall St",
+      "lat": 41.3109,
+      "lng": -72.928,
+      "coordSource": "building",
+      "hours": "Library hours",
+      "description": "The quieter Bass floor with soft seating and high-top tables. Walk in. Good for solo reading when Sterling feels too formal.",
+      "tags": [
+        "quiet",
+        "walk-in",
+        "solo",
+        "soft seating",
+        "central campus",
+        "outlets"
+      ]
+    },
+    {
+      "id": "sterling-memorial-library-nave",
+      "name": "Sterling Memorial Library Nave",
+      "address": "120 High St",
+      "lat": 41.3112,
+      "lng": -72.9288,
+      "coordSource": "building",
+      "hours": "Library hours",
+      "description": "Silent cathedral-like reading room with long wooden tables, green lamps, and natural light through stained glass. Strictly quiet, no talking, no food. Ideal for deep solo reading, memorizing, or writing.",
+      "tags": [
+        "silent",
+        "quiet",
+        "solo",
+        "reading",
+        "natural light",
+        "beautiful",
+        "no talking",
+        "no food",
+        "focus",
+        "walk-in"
+      ]
+    },
+    {
+      "id": "sterling-starr-reference-room",
+      "name": "Sterling Starr Reference Room",
+      "address": "120 High St",
+      "lat": 41.31146,
+      "lng": -72.92894,
+      "coordSource": "building",
+      "hours": "Library hours",
+      "description": "Large public quiet reading room on Sterling's ground floor with the reference collection. Slightly less hushed than the Nave, more table space.",
+      "tags": [
+        "quiet",
+        "solo",
+        "reading",
+        "reference",
+        "walk-in",
+        "central campus",
+        "writing"
+      ]
+    },
+    {
+      "id": "sterling-linonia-brothers-room",
+      "name": "Sterling Linonia & Brothers Room",
+      "address": "120 High St",
+      "lat": 41.31146,
+      "lng": -72.92894,
+      "coordSource": "building",
+      "hours": "Library hours",
+      "description": "Recently renovated room in Sterling with soft seating and reading nooks. The cozy option for reading a novel for a seminar.",
+      "tags": [
+        "cozy",
+        "soft seating",
+        "reading",
+        "quiet",
+        "beautiful",
+        "walk-in",
+        "humanities"
+      ]
+    },
+    {
+      "id": "ceid-study-space",
+      "name": "CEID Study Space",
+      "address": "15 Prospect St",
+      "lat": 41.31267,
+      "lng": -72.92512,
+      "coordSource": "building",
+      "hours": "Members 24/7; public weekdays",
+      "description": "Open collaborative space in the Center for Engineering Innovation and Design with standing tables, whiteboards, 3D printers, and tools. Noisy and social. Good for a project team building something. Members only after hours.",
+      "tags": [
+        "group",
+        "collaborative",
+        "whiteboard",
+        "makerspace",
+        "loud",
+        "project",
+        "prototyping",
+        "engineering",
+        "standing desks",
+        "near davies",
+        "walk-in"
+      ]
+    },
+    {
+      "id": "humanities-quadrangle-study-room",
+      "name": "Humanities Quadrangle Study Room",
+      "address": "320 York St",
+      "lat": 41.31231,
+      "lng": -72.92913,
+      "coordSource": "building",
+      "hours": "Building hours",
+      "description": "Small seminar-style rooms in the Humanities Quadrangle with a round table, a whiteboard, and courtyard windows. Quiet and private. First-come for students.",
+      "tags": [
+        "group",
+        "small",
+        "whiteboard",
+        "quiet",
+        "private",
+        "seminar",
+        "humanities",
+        "discussion",
+        "window",
+        "essays",
+        "walk-in"
+      ]
+    },
+    {
+      "id": "cushing-whitney-medical-library",
+      "name": "Cushing/Whitney Medical Library",
+      "address": "333 Cedar St",
+      "lat": 41.303,
+      "lng": -72.93324,
+      "coordSource": "building",
+      "hours": "24/7 with Yale ID",
+      "description": "Medical campus library with 24-hour access, some reservable rooms, and the silent Morse Reading Room. A long walk from central campus but nearly empty of undergrads.",
+      "tags": [
+        "quiet",
+        "silent",
+        "24/7",
+        "medical campus",
+        "far",
+        "empty",
+        "solo",
+        "reading"
+      ]
+    },
+    {
+      "id": "divinity-library-day-missions-reading-room",
+      "name": "Divinity Library Day Missions Reading Room",
+      "address": "409 Prospect St",
+      "lat": 41.32339,
+      "lng": -72.92131,
+      "coordSource": "building",
+      "hours": "Library hours",
+      "description": "Majestic two-story reading room at the Divinity School, quiet and rarely crowded. Worth the walk up Prospect for a long, distraction-free afternoon.",
+      "tags": [
+        "quiet",
+        "beautiful",
+        "solo",
+        "reading",
+        "far",
+        "empty",
+        "natural light",
+        "walk-in",
+        "prospect hill"
+      ]
+    }
+  ]
+}

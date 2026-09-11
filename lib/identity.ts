@@ -12,7 +12,6 @@ export const STORAGE_KEYS = {
   examUrgency: "studyspace.examUrgency",
   includeCoffeeShops: "studyspace.includeCoffeeShops",
   maxExtraWalkingMinutes: "studyspace.maxExtraWalkingMinutes",
-  recurringAutobook: "studyspace.recurringAutobook",
   origin: "studyspace.origin",
 } as const;
 
