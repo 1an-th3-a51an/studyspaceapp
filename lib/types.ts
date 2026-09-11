@@ -1,18 +1,5 @@
 export type EventSource = "gcal" | "coursetable-ics" | "syllabus" | "demo";
 
-/** The two sources a user can actually import a calendar from. */
-export type ParsedCalendarSource = Extract<EventSource, "gcal" | "coursetable-ics">;
-
-/** One course on the user's own schedule, derived from imported calendars. */
-export type MyCourse = {
-  courseCode: string;
-  title: string;
-  /** Where the next (or most recent) meeting of this course is held. */
-  location?: string;
-  /** ISO start of the next upcoming meeting, when there is one. */
-  nextStart?: string;
-};
-
 export type ClassMeeting = {
   courseCode: string;
   title: string;
@@ -105,44 +92,9 @@ export type RoomBooking = {
   spotName: string;
   bookingUrl?: string;
   start: string; // ISO
-  /**
-   * Seats, clamped to the room's published capacity. This is also the pool's
-   * hard cap: a room that seats 1 can never host a group.
-   */
   capacity: number;
-  /** Why `capacity` is what it is, so the UI can explain a clamp. */
-  capacityNote?: string;
   members: { deviceId: string; displayName: string }[];
   createdAt: string; // ISO
-  /** Outcome of the announcement email, filled in by the server. */
-  notified?: BookingNotifyResult;
-};
-
-/** What happened when the server tried to email a booking out. */
-export type BookingNotifyResult = {
-  /** Distinct addresses the announcement was addressed to. */
-  recipients: number;
-  /** Courses whose subscribers were included, starting with the host's. */
-  courses: string[];
-  delivery: "sent" | "logged" | "skipped" | "failed";
-  detail?: string;
-};
-
-/** An email address opted in to announcements for one course. */
-export type CourseSubscription = {
-  courseCode: string;
-  email: string;
-  deviceId: string;
-  displayName?: string;
-  createdAt: string; // ISO
-};
-
-/** Which store is behind the live data, reported by the API for the UI chip. */
-export type BackendInfo = {
-  kind: "firestore" | "file" | "memory";
-  label: string;
-  durable: boolean;
-  detail: string;
 };
 
 /** What the pools page polls for. */

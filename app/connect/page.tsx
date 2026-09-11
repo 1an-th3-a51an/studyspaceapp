@@ -4,7 +4,6 @@ import Link from "next/link";
 import { CourseTableExportHelp } from "@/components/connect/CourseTableExportHelp";
 import { IcsDropzone } from "@/components/connect/IcsDropzone";
 import { NetIdForm } from "@/components/connect/NetIdForm";
-import { NotifySubscription } from "@/components/connect/NotifySubscription";
 import { TextPasteFallback } from "@/components/connect/TextPasteFallback";
 import { Button } from "@/components/ui/button";
 import {
@@ -52,18 +51,6 @@ export default function ConnectPage() {
         </CardHeader>
         <CardContent>
           <TextPasteFallback />
-        </CardContent>
-      </Card>
-      <Card>
-        <CardHeader>
-          <CardTitle>Booking announcements</CardTitle>
-          <CardDescription>
-            Optional. Get an email when a classmate books a room for one of your
-            courses, or a closely related one.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <NotifySubscription />
         </CardContent>
       </Card>
       <Button asChild>

@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { IdentityBoot } from "@/components/shared/IdentityBoot";
-import { JoinBanner } from "@/components/shared/JoinBanner";
 import { SiteNav } from "@/components/shared/SiteNav";
 import "./globals.css";
 
@@ -29,7 +28,6 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     >
       <body className="flex min-h-full flex-col font-sans">
         <IdentityBoot />
-        <JoinBanner />
         <SiteNav />
         <main className="flex flex-1 flex-col">{children}</main>
       </body>

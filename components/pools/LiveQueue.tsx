@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { Gamepad2, LogOut, Radio } from "lucide-react";
 import { DebouncedSubmitButton } from "@/components/shared/DebouncedSubmitButton";
 import { Badge } from "@/components/ui/badge";
@@ -16,7 +16,6 @@ import {
 } from "@/components/ui/select";
 import { joinQueue, leaveQueue } from "@/lib/hooks/queue";
 import { getDisplayName, setDisplayName as persistDisplayName } from "@/lib/identity";
-import { announceJoin } from "@/lib/joinBanner";
 import { failsProfanityCheck } from "@/lib/profanity";
 import type { QueueSnapshot } from "@/lib/types";
 
@@ -40,30 +39,6 @@ export function LiveQueue({
   const myPool =
     mine?.poolId ? snapshot?.pools.find((p) => p.id === mine.poolId) ?? null : null;
   const target = mine?.targetGroupSize ?? Number(size);
-
-  // A pool can form on any poll, not just on the click that joined the queue,
-  // so the banner fires on the transition into a pool rather than inline.
-  // The first snapshot only records the starting state, so arriving on a page
-  // where you are already matched does not replay the banner.
-  const lastPoolId = useRef<{ initialised: boolean; id: string | null }>({
-    initialised: false,
-    id: null,
-  });
-  useEffect(() => {
-    if (!snapshot) return;
-    const id = myPool?.id ?? null;
-    if (!lastPoolId.current.initialised) {
-      lastPoolId.current = { initialised: true, id };
-      return;
-    }
-    if (id && id !== lastPoolId.current.id && myPool) {
-      announceJoin({
-        title: "Matched into a study pool",
-        detail: `${myPool.courseCode} · ${myPool.memberCount} of ${myPool.targetGroupSize} · hosted by ${myPool.hostDisplayName}`,
-      });
-    }
-    lastPoolId.current.id = id;
-  }, [snapshot, myPool]);
 
   async function join() {
     if (!name.trim()) {

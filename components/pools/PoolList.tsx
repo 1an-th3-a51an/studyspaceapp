@@ -17,9 +17,11 @@ function showDemoBadge(pool: StudyPool): boolean {
 
 export function PoolList({
   pools,
+  wired,
   onJoin,
 }: {
   pools: StudyPool[];
+  wired: boolean;
   onJoin: (pool: StudyPool) => void;
 }) {
   const uniquePools = Array.from(
@@ -28,6 +30,9 @@ export function PoolList({
 
   return (
     <div className="space-y-3">
+      {!wired ? (
+        <p className="text-sm text-muted-foreground">Seed DB not wired</p>
+      ) : null}
       {uniquePools.length === 0 ? (
         <p className="text-sm text-muted-foreground">
           No pools for this course yet. Host one to get started.

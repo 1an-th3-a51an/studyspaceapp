@@ -52,8 +52,8 @@ export function LandingHero() {
             <CardHeader className="px-0">
               <CardTitle>Least walking</CardTitle>
               <CardDescription>
-                Plans coffee shop meetups. Or redirects you to a study space
-                website so your spot is a click away.
+                Coffee first when it is close; otherwise a Yale room at
+                schedule.yale.edu/space/36623.
               </CardDescription>
             </CardHeader>
           </CardContent>

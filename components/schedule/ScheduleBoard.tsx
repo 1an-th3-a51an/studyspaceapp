@@ -9,27 +9,17 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { formatTimeRange, formatWhen } from "@/lib/format";
-import type { ClassMeeting, Deadline } from "@/lib/types";
-
-function classHeading(meeting: ClassMeeting): string {
-  const title = meeting.title.trim();
-  if (
-    !title ||
-    title === meeting.courseCode ||
-    /^(lecture|discussion|seminar|section|lab|recitation|studio|class)$/i.test(title)
-  ) {
-    return meeting.courseCode;
-  }
-  return `${meeting.courseCode} · ${title}`;
-}
+import type { ClassMeeting, Deadline, OfficeHour } from "@/lib/types";
 
 export function ScheduleBoard({
   meetings,
   deadlines,
+  officeHours,
   demo,
 }: {
   meetings: ClassMeeting[];
   deadlines: Deadline[];
+  officeHours: OfficeHour[];
   demo: boolean;
 }) {
   return (
@@ -40,23 +30,23 @@ export function ScheduleBoard({
           <CardDescription>
             {demo
               ? "Handsome Dan demo dataset (local, no LLM)."
-              : "Your connected calendars, with recurring classes expanded. Google Calendar wins on the same start-minute + title."}
+              : "Merged calendar. Google Calendar wins on the same start-minute + title."}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
           {meetings.length === 0 ? (
             <p className="text-sm text-muted-foreground">
-              No classes yet. Connect an .ics or start Demo Mode.
+              No meetings yet. Connect an .ics or start Demo Mode.
             </p>
           ) : (
             meetings.map((meeting) => (
               <div
-                key={`${meeting.start}-${meeting.courseCode}-${meeting.title}`}
+                key={`${meeting.start}-${meeting.title}`}
                 className="rounded-lg border bg-background p-3"
               >
                 <div className="flex flex-wrap items-center gap-2">
                   <p className="font-medium">
-                    {classHeading(meeting)}
+                    {meeting.courseCode} · {meeting.title}
                   </p>
                   <Badge variant="secondary">{meeting.source}</Badge>
                 </div>
@@ -69,30 +59,50 @@ export function ScheduleBoard({
           )}
         </CardContent>
       </Card>
-      <Card>
-        <CardHeader>
-          <CardTitle>Deadlines</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {deadlines.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No deadlines loaded.</p>
-          ) : (
-            deadlines.map((item) => (
-              <div
-                key={`${item.due}-${item.title}`}
-                className="rounded-lg border bg-background p-3"
-              >
-                <p className="font-medium">
-                  {item.courseCode} · {item.title}
+      <div className="space-y-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>Deadlines</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {deadlines.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No deadlines loaded.</p>
+            ) : (
+              deadlines.map((item) => (
+                <div
+                  key={`${item.due}-${item.title}`}
+                  className="rounded-lg border bg-background p-3"
+                >
+                  <p className="font-medium">
+                    {item.courseCode} · {item.title}
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    Due {formatWhen(item.due)}
+                  </p>
+                </div>
+              ))
+            )}
+          </CardContent>
+        </Card>
+        {officeHours.length > 0 ? (
+          <Card>
+            <CardHeader>
+              <CardTitle>Office hours</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {officeHours.map((item) => (
+                <p
+                  key={`${item.start}-${item.location ?? ""}`}
+                  className="text-sm"
+                >
+                  {formatTimeRange(item.start, item.end)}
+                  {item.location ? ` · ${item.location}` : ""}
                 </p>
-                <p className="text-sm text-muted-foreground">
-                  Due {formatWhen(item.due)}
-                </p>
-              </div>
-            ))
-          )}
-        </CardContent>
-      </Card>
+              ))}
+            </CardContent>
+          </Card>
+        ) : null}
+      </div>
     </div>
   );
 }

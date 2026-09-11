@@ -5,7 +5,6 @@ import { GitBranch, Users } from "lucide-react";
 import { DemoSampleBadge } from "@/components/pools/DemoSampleBadge";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { courseTitle, GRAPH_PROVENANCE } from "@/lib/courseGraph";
 import { similarCourses, type SimilarCourse } from "@/lib/courseSimilarity";
 import { listPoolsByCourseCode } from "@/lib/hooks/listPools";
 import type { StudyPool } from "@/lib/types";
@@ -78,11 +77,8 @@ export function SimilarCoursePools({
           <GitBranch className="size-4" />
           Pools in similar courses
         </h2>
-        <span
-          className="text-xs text-muted-foreground"
-          title={GRAPH_PROVENANCE.detail}
-        >
-          Source: {GRAPH_PROVENANCE.label}
+        <span className="text-xs text-muted-foreground">
+          Co-enrollment links are a seeded sample, not live CourseTable data.
         </span>
       </div>
       {loading && rows.length === 0 ? (
@@ -96,7 +92,6 @@ export function SimilarCoursePools({
               type="button"
               className="font-medium underline-offset-4 hover:underline"
               onClick={() => onPickCourse(row.courseCode)}
-              title={courseTitle(row.courseCode)}
             >
               {row.courseCode}
             </button>

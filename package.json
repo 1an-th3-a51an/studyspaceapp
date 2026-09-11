@@ -6,14 +6,11 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint",
-    "import:coursetable": "node scripts/import-coursetable.mjs",
-    "import:coursetable:live": "node scripts/import-coursetable.mjs --fetch 202603 --term \"Fall 2026\""
+    "lint": "eslint"
   },
   "dependencies": {
     "class-variance-authority": "^0.7.1",
     "cn": "^0.2.6",
-    "firebase-admin": "^14.4.0",
     "leaflet": "^1.9.4",
     "lucide-react": "^1.44.0",
     "next": "16.3.4",

@@ -11,13 +11,18 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { parseCalendar } from "@/lib/icsParse";
-import { setCalendarImport } from "@/lib/scheduleStore";
-import type { ParsedCalendarSource } from "@/lib/types";
+import { parseCalendarText } from "@/lib/icsParse";
+import {
+  setCourseTableEvents,
+  setGcalEvents,
+} from "@/lib/scheduleStore";
+import type { EventSource } from "@/lib/types";
 
 export function TextPasteFallback() {
   const [text, setText] = useState("");
-  const [source, setSource] = useState<ParsedCalendarSource>("coursetable-ics");
+  const [source, setSource] = useState<Extract<EventSource, "gcal" | "coursetable-ics">>(
+    "coursetable-ics",
+  );
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
@@ -27,7 +32,9 @@ export function TextPasteFallback() {
         <Label htmlFor="calendar-paste">Parse pasted calendar text</Label>
         <Select
           value={source}
-          onValueChange={(value) => setSource(value as ParsedCalendarSource)}
+          onValueChange={(value) =>
+            setSource(value as Extract<EventSource, "gcal" | "coursetable-ics">)
+          }
         >
           <SelectTrigger className="min-w-48">
             <SelectValue />
@@ -41,7 +48,7 @@ export function TextPasteFallback() {
       <Textarea
         id="calendar-paste"
         rows={8}
-        placeholder="Paste BEGIN:VCALENDAR … or lines like S&DS 2380 Lecture 2026-09-14T13:05:00-04:00"
+        placeholder="Paste BEGIN:VCALENDAR … or lines like CPSC 223 Lecture 2026-09-14T10:30:00-04:00"
         value={text}
         onChange={(event) => setText(event.target.value)}
       />
@@ -51,15 +58,14 @@ export function TextPasteFallback() {
         onSubmit={() => {
           setError("");
           setMessage("");
-          const parsed = parseCalendar(text, source);
-          if (parsed.meetings.length === 0 && parsed.deadlines.length === 0) {
+          const events = parseCalendarText(text, source);
+          if (events.length === 0) {
             setError("No events found. Paste ICS or a line with an ISO timestamp.");
             return;
           }
-          setCalendarImport(source, parsed);
-          setMessage(
-            `Parsed ${parsed.meetings.length} class meeting(s) and ${parsed.deadlines.length} deadline(s). Schedule, Pools, and Rooms now use this calendar.`,
-          );
+          if (source === "gcal") setGcalEvents(events);
+          else setCourseTableEvents(events);
+          setMessage(`Parsed ${events.length} event${events.length === 1 ? "" : "s"}.`);
         }}
       >
         Parse pasted calendar text

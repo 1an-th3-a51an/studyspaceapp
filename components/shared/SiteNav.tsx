@@ -10,6 +10,7 @@ const LINKS = [
   { href: "/schedule", label: "Schedule" },
   { href: "/pools", label: "Pools" },
   { href: "/rooms", label: "Rooms" },
+  { href: "/clubs", label: "Clubs" },
 ];
 
 export function SiteNav() {
