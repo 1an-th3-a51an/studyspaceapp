@@ -40,12 +40,37 @@ import { subscribeToCourses } from "@/lib/hooks/subscribe";
 import { findSpot, resolveBookingCapacity, UNKNOWN_SPOT_MAX_CAPACITY } from "@/lib/spots";
 import type { MyCourse, StudyRecommendation } from "@/lib/types";
 
-function nextHourLocal(): string {
-  const d = new Date();
-  d.setMinutes(0, 0, 0);
-  d.setHours(d.getHours() + 1);
+function toDatetimeLocalValue(date: Date): string {
   const pad = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+/** Next 30-minute clock time in the user's timezone, matching datetime-local + step. */
+function nextHalfHourLocal(): string {
+  const date = new Date();
+  date.setSeconds(0, 0);
+  const remainder = date.getMinutes() % 30;
+  date.setMinutes(date.getMinutes() + (remainder === 0 ? 30 : 30 - remainder));
+  // Midnight-looking defaults are almost always a timezone/late-night artifact.
+  if (date.getHours() >= 22 || date.getHours() < 8) {
+    if (date.getHours() >= 22) date.setDate(date.getDate() + 1);
+    date.setHours(9, 0, 0, 0);
+  }
+  return toDatetimeLocalValue(date);
+}
+
+function datetimeLocalToIso(value: string): string {
+  const match = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/.exec(value);
+  if (!match) return "";
+  const [, year, month, day, hour, minute] = match;
+  const date = new Date(
+    Number(year),
+    Number(month) - 1,
+    Number(day),
+    Number(hour),
+    Number(minute),
+  );
+  return Number.isNaN(date.getTime()) ? "" : date.toISOString();
 }
 
 export function BookAndAnnounceDialog({
@@ -66,7 +91,7 @@ export function BookAndAnnounceDialog({
   const [name, setName] = useState("");
   const [course, setCourse] = useState("");
   const [customCourse, setCustomCourse] = useState("");
-  const [start, setStart] = useState(nextHourLocal);
+  const [start, setStart] = useState(nextHalfHourLocal);
   const [seats, setSeats] = useState("1");
   const [email, setEmail] = useState("");
   const [error, setError] = useState("");
@@ -88,7 +113,7 @@ export function BookAndAnnounceDialog({
       setName((n) => n || getDisplayName());
       setEmail((e) => e || getNotifyEmail());
       setCourse(defaultCourseCode || courses[0]?.courseCode || "custom");
-      setStart(nextHourLocal());
+      setStart(nextHalfHourLocal());
       const preferred = readTune().preferredGroupSize;
       setSeats(String(Math.max(1, Math.min(maxSeats, preferred ?? 2))));
       setError("");
@@ -105,10 +130,7 @@ export function BookAndAnnounceDialog({
     [maxSeats],
   );
 
-  const startIso = useMemo(() => {
-    const ms = Date.parse(start);
-    return Number.isNaN(ms) ? "" : new Date(ms).toISOString();
-  }, [start]);
+  const startIso = useMemo(() => datetimeLocalToIso(start), [start]);
 
   const yaleUrl = useMemo(() => {
     if (!registrySpot || !registrySpot.bookingUrl || !startIso) return spot?.bookingUrl;
@@ -182,7 +204,7 @@ export function BookAndAnnounceDialog({
 
   return (
     <Dialog open={spot !== null} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[85vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>
             {isRoom ? "Book" : "Meet at"} {spot?.name ?? ""}
@@ -198,7 +220,7 @@ export function BookAndAnnounceDialog({
             see it on the Pools page, and subscribers get an email.
           </DialogDescription>
         </DialogHeader>
-        <div className="grid gap-4">
+        <div className="grid min-w-0 gap-4">
           <div className="space-y-1.5">
             <Label htmlFor="book-name">Display name</Label>
             <Input
@@ -208,15 +230,22 @@ export function BookAndAnnounceDialog({
               onChange={(e) => setName(e.target.value)}
             />
           </div>
-          <div className="space-y-1.5">
+          <div className="min-w-0 space-y-1.5">
             <Label htmlFor="book-course">Course</Label>
             <Select value={course} onValueChange={setCourse}>
-              <SelectTrigger id="book-course" className="w-full">
+              <SelectTrigger
+                id="book-course"
+                className="h-auto min-h-8 w-full min-w-0 whitespace-normal [&_[data-slot=select-value]]:line-clamp-2 [&_[data-slot=select-value]]:whitespace-normal [&_[data-slot=select-value]]:text-left"
+              >
                 <SelectValue placeholder="Pick a course" />
               </SelectTrigger>
-              <SelectContent position="popper">
+              <SelectContent position="popper" className="max-w-[min(36rem,calc(100vw-3rem))]">
                 {courses.map((c) => (
-                  <SelectItem key={c.courseCode} value={c.courseCode}>
+                  <SelectItem
+                    key={c.courseCode}
+                    value={c.courseCode}
+                    className="whitespace-normal"
+                  >
                     {c.title && c.title !== c.courseCode
                       ? `${c.courseCode} · ${c.title}`
                       : c.courseCode}
@@ -233,21 +262,22 @@ export function BookAndAnnounceDialog({
               />
             ) : null}
           </div>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-1.5">
+          <div className="grid min-w-0 gap-4">
+            <div className="min-w-0 space-y-1.5">
               <Label htmlFor="book-start">Start</Label>
               <Input
                 id="book-start"
                 type="datetime-local"
                 step={1800}
+                className="w-full min-w-0 max-w-full"
                 value={start}
                 onChange={(e) => setStart(e.target.value)}
               />
             </div>
-            <div className="space-y-1.5">
+            <div className="min-w-0 space-y-1.5">
               <Label htmlFor="book-cap">Seats in this pool</Label>
               <Select value={seats} onValueChange={setSeats}>
-                <SelectTrigger id="book-cap" className="w-full">
+                <SelectTrigger id="book-cap" className="w-full min-w-0">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent position="popper">
@@ -258,7 +288,7 @@ export function BookAndAnnounceDialog({
                   ))}
                 </SelectContent>
               </Select>
-              <p className="text-xs text-muted-foreground">
+              <p className="text-xs leading-relaxed text-muted-foreground">
                 {published !== undefined
                   ? `schedule.yale.edu lists ${published} seat${published === 1 ? "" : "s"}${
                       published > UNKNOWN_SPOT_MAX_CAPACITY
@@ -313,11 +343,11 @@ export function BookAndAnnounceDialog({
           {error ? <p className="text-sm text-destructive">{error}</p> : null}
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+          <Button variant="outline" className="w-full sm:w-auto" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <DebouncedSubmitButton onSubmit={submit}>
-            {isRoom ? "Open Yale page & announce" : "Announce"}
+          <DebouncedSubmitButton className="w-full sm:w-auto" onSubmit={submit}>
+            {isRoom ? "Book" : "Meet here"}
           </DebouncedSubmitButton>
         </DialogFooter>
       </DialogContent>
