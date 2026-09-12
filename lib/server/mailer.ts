@@ -23,7 +23,10 @@ export type MailMessage = {
 };
 
 export function isMailConfigured(): boolean {
-  return Boolean(process.env.RESEND_API_KEY && process.env.MAIL_FROM);
+  return Boolean(
+    process.env.RESEND_API_KEY?.trim() &&
+      process.env.MAIL_FROM?.trim().replace(/^["']|["']$/g, ""),
+  );
 }
 
 export async function sendMail(message: MailMessage): Promise<MailResult> {
@@ -34,8 +37,8 @@ export async function sendMail(message: MailMessage): Promise<MailResult> {
     return { delivery: "skipped", detail: "no subscribers for this course yet" };
   }
 
-  const apiKey = process.env.RESEND_API_KEY;
-  const from = process.env.MAIL_FROM;
+  const apiKey = process.env.RESEND_API_KEY?.trim();
+  const from = process.env.MAIL_FROM?.trim().replace(/^["']|["']$/g, "");
   if (!apiKey || !from) {
     console.info(
       `[studyspace] email not configured; would have sent "${message.subject}" to ${recipients.length} recipient(s)`,

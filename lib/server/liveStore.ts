@@ -3,7 +3,7 @@ import { similarCourses, normalizeCourseCode } from "@/lib/courseSimilarity";
 import { DEMO_POOLS } from "@/lib/demo/handsomeDan";
 import { getFirestoreDb, isFirebaseConfigured } from "@/lib/firebase/admin";
 import { failsProfanityCheck } from "@/lib/profanity";
-import { notifyBooking } from "@/lib/server/bookingNotify";
+import { bookingAudience, notifyBooking } from "@/lib/server/bookingNotify";
 import { isEmailish } from "@/lib/server/mailer";
 import { createPersistence } from "@/lib/server/persistence";
 import { resolveBookingCapacity } from "@/lib/spots";
@@ -188,6 +188,7 @@ export type LiveStore = {
     start: string;
     capacity: number;
     now: number;
+    hostEmail?: string;
   }): Promise<QueueSnapshot & { booking: RoomBooking }>;
   joinBooking(input: {
     deviceId: string;
@@ -408,7 +409,7 @@ function createLocalStore(): LiveStore {
       flush();
       return snapshot(courseCode, deviceId, now);
     },
-    async book({ deviceId, displayName, courseCode, spotName, bookingUrl, start, capacity, now }) {
+    async book({ deviceId, displayName, courseCode, spotName, bookingUrl, start, capacity, now, hostEmail }) {
       const ruling = resolveBookingCapacity(spotName, capacity);
       const booking: RoomBooking = {
         id: crypto.randomUUID(),
@@ -424,7 +425,7 @@ function createLocalStore(): LiveStore {
         createdAt: new Date(now).toISOString(),
       };
       const s = state();
-      booking.notified = await notifyBooking(booking, s.subscriptions);
+      booking.notified = await notifyBooking(booking, s.subscriptions, { hostEmail });
       s.bookings.unshift(booking);
       flush();
       return { ...(await snapshot(courseCode, deviceId, now)), booking };
@@ -677,6 +678,18 @@ function compact(value: Record<string, unknown>): Record<string, unknown> {
   return out;
 }
 
+function compactDeep(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(compactDeep);
+  if (value && typeof value === "object") {
+    const out: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+      if (v !== undefined) out[k] = compactDeep(v);
+    }
+    return out;
+  }
+  return value;
+}
+
 /** Firestore document id for a subscription, so re-subscribing overwrites. */
 function subscriptionDocId(courseCode: string, email: string): string {
   return `${courseCode}__${email}`.replace(/\//g, "_");
@@ -855,7 +868,7 @@ function createFirestoreStore(): LiveStore {
       await batch.commit();
       return snapshot(courseCode, deviceId, now);
     },
-    async book({ deviceId, displayName, courseCode, spotName, bookingUrl, start, capacity, now }) {
+    async book({ deviceId, displayName, courseCode, spotName, bookingUrl, start, capacity, now, hostEmail }) {
       const ruling = resolveBookingCapacity(spotName, capacity);
       const ref = db.collection(COL_BOOKINGS).doc();
       const booking: RoomBooking = {
@@ -871,13 +884,12 @@ function createFirestoreStore(): LiveStore {
         members: [{ deviceId, displayName }],
         createdAt: new Date(now).toISOString(),
       };
-      const audience = [courseCode, ...similarCourses(courseCode).map((c) => c.courseCode)];
-      booking.notified = await notifyBooking(booking, await loadSubscriptions(audience));
+      const audience = bookingAudience(courseCode);
+      booking.notified = await notifyBooking(booking, await loadSubscriptions(audience), {
+        hostEmail,
+      });
 
-      const payload: Record<string, unknown> = { ...booking };
-      delete payload.id;
-      if (!payload.bookingUrl) delete payload.bookingUrl;
-      if (!payload.capacityNote) delete payload.capacityNote;
+      const payload = compactDeep({ ...booking, id: undefined }) as Record<string, unknown>;
       await ref.set(payload);
       return { ...(await snapshot(courseCode, deviceId, now)), booking };
     },

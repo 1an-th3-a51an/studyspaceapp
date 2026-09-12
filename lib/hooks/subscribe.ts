@@ -1,3 +1,4 @@
+import { apiFetch } from "@/lib/hooks/apiFetch";
 import { ensureDeviceId } from "@/lib/identity";
 
 export type SubscribeResult = {
@@ -22,7 +23,7 @@ export async function subscribeToCourses(input: {
   courseCodes: string[];
   displayName?: string;
 }): Promise<SubscribeResult> {
-  const res = await fetch("/api/subscribe", {
+  const res = await apiFetch("/api/subscribe", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -36,7 +37,7 @@ export async function subscribeToCourses(input: {
 }
 
 export async function unsubscribeEmail(email: string): Promise<{ removed: number }> {
-  const res = await fetch("/api/subscribe", {
+  const res = await apiFetch("/api/subscribe", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ action: "unsubscribe", email }),
