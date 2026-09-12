@@ -1,4 +1,5 @@
-# StudySpace
+<img width="1916" height="1078" alt="Screenshot 2026-09-11 222044" src="https://github.com/user-attachments/assets/dc40eb08-549e-4cdc-9d1c-38c861fbbacf" />
+<img width="1916" height="1078" alt="Screenshot 2026-09-11 222044" src="https://github.com/user-attachments/assets/3b6689f3-afb0-493e-99e0-6cf3acb47240" /># StudySpace
 
 Yale study pooling app: merge a CourseTable `.ics` with Google Calendar, join a study pool by course code, and pick a nearby coffee shop or Bass Library room.
 
