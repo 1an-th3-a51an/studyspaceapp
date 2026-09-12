@@ -46,7 +46,7 @@ export function JoinBanner() {
     <div
       role="status"
       aria-live="polite"
-      className="fixed inset-x-0 top-0 z-50 flex h-[16.6667vh] min-h-20 items-center justify-center bg-primary px-6 text-primary-foreground shadow-lg motion-safe:animate-in motion-safe:slide-in-from-top motion-safe:duration-200"
+      className="fixed inset-x-0 top-16 z-[60] flex h-[16.6667vh] min-h-20 items-center justify-center bg-primary px-6 text-primary-foreground shadow-lg motion-safe:animate-in motion-safe:slide-in-from-top motion-safe:duration-200"
     >
       <div className="flex items-center gap-3 text-center">
         <PartyPopper className="size-6 shrink-0" aria-hidden />
