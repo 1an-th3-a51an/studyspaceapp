@@ -96,7 +96,7 @@ export function NotifySubscription() {
               const result = await subscribeToCourses({
                 email,
                 displayName: getDisplayName() || undefined,
-                courseCodes: courses,
+                courseCodes: [...courses, ...similar],
               });
               setNotifyEmail(result.email);
               setMailConfigured(result.mailConfigured);

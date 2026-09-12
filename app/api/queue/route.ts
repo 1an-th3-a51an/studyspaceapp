@@ -56,7 +56,8 @@ export async function POST(request: Request): Promise<Response> {
 
     const rawDeviceId = typeof body.deviceId === "string" ? body.deviceId.trim() : "";
     if (!rawDeviceId) return json({ error: "deviceId required" }, 400);
-    const deviceId = (await resolveActor(request, rawDeviceId)).deviceId;
+    const actor = await resolveActor(request, rawDeviceId);
+    const deviceId = actor.deviceId;
 
     const store = getLiveStore();
     const now = Date.now();
@@ -111,6 +112,7 @@ export async function POST(request: Request): Promise<Response> {
             start: new Date(startMs).toISOString(),
             capacity,
             now,
+            hostEmail: actor.email,
           }),
         );
       }

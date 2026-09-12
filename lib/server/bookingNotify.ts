@@ -48,7 +48,7 @@ export function composeBookingEmail(booking: RoomBooking): {
     `Say you are coming on the Pools page: /pools?course=${encodeURIComponent(booking.courseCode)}`,
     "",
     "You are getting this because you subscribed to booking announcements for",
-    "this course or a closely related one in StudySpace.",
+    "this course or a closely related one in YaleBooking.",
   );
 
   return {
@@ -61,16 +61,23 @@ export function composeBookingEmail(booking: RoomBooking): {
 export async function notifyBooking(
   booking: RoomBooking,
   subscribers: CourseSubscription[],
+  options?: { hostEmail?: string },
 ): Promise<BookingNotifyResult> {
   const courses = bookingAudience(booking.courseCode);
   const allowed = new Set(courses);
-  // Never email the host their own announcement.
+  const hostEmail = options?.hostEmail?.trim().toLowerCase();
+  // Never email the host their own announcement (same device or same address).
   const recipients = Array.from(
     new Set(
       subscribers
-        .filter((s) => allowed.has(s.courseCode) && s.deviceId !== booking.deviceId)
-        .map((s) => s.email.trim().toLowerCase())
-        .filter(Boolean),
+        .filter((s) => {
+          if (!allowed.has(s.courseCode)) return false;
+          if (s.deviceId && s.deviceId === booking.deviceId) return false;
+          const address = s.email.trim().toLowerCase();
+          if (hostEmail && address === hostEmail) return false;
+          return Boolean(address);
+        })
+        .map((s) => s.email.trim().toLowerCase()),
     ),
   );
 
