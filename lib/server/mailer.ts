@@ -33,9 +33,6 @@ export async function sendMail(message: MailMessage): Promise<MailResult> {
   const recipients = Array.from(
     new Set(message.recipients.map((r) => r.trim().toLowerCase()).filter(Boolean)),
   );
-  if (recipients.length === 0) {
-    return { delivery: "skipped", detail: "no subscribers for this course yet" };
-  }
 
   const apiKey = process.env.RESEND_API_KEY?.trim();
   const from = process.env.MAIL_FROM?.trim().replace(/^["']|["']$/g, "");
@@ -45,8 +42,14 @@ export async function sendMail(message: MailMessage): Promise<MailResult> {
     );
     return {
       delivery: "logged",
-      detail: "set RESEND_API_KEY and MAIL_FROM to deliver these for real",
+      detail: recipients.length
+        ? `Resend is not configured; set RESEND_API_KEY and MAIL_FROM to email ${recipients.length} classmate(s)`
+        : "Resend is not configured; set RESEND_API_KEY and MAIL_FROM to deliver booking announcements",
     };
+  }
+
+  if (recipients.length === 0) {
+    return { delivery: "skipped", detail: "no classmates with an email for this course yet" };
   }
 
   try {

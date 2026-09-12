@@ -8,28 +8,38 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { similarCourses } from "@/lib/courseSimilarity";
+import { useAuth } from "@/lib/hooks/useAuth";
 import { subscribeToCourses, unsubscribeEmail } from "@/lib/hooks/subscribe";
 import { useSchedule } from "@/lib/hooks/useSchedule";
-import { getDisplayName, getNotifyEmail, setNotifyEmail } from "@/lib/identity";
+import {
+  getDisplayName,
+  getNotifyEmail,
+  setNotifyEmail,
+  setNotifyOptOut,
+} from "@/lib/identity";
 
 /**
- * Opt in to booking announcements.
+ * Opt in (or out) of booking announcement email.
  *
- * The app has no Yale directory and no OAuth, so "email everyone in the class"
- * has to mean "everyone who listed this course and left an address". This is
- * where they leave it.
+ * Signed-in Yale accounts with this course on their schedule are already
+ * classmates for announcements. This form is an extra address, or Unsubscribe.
+ * Related catalog courses are matched on the server when someone books — they
+ * are not sent as extra subscribe codes.
  */
 export function NotifySubscription() {
   const schedule = useSchedule();
+  const { user } = useAuth();
   const [email, setEmail] = useState("");
   const [status, setStatus] = useState("");
   const [error, setError] = useState("");
   const [mailConfigured, setMailConfigured] = useState<boolean | null>(null);
 
   useEffect(() => {
-    const timer = window.setTimeout(() => setEmail(getNotifyEmail()), 0);
+    const timer = window.setTimeout(() => {
+      setEmail(getNotifyEmail() || user?.email || "");
+    }, 0);
     return () => window.clearTimeout(timer);
-  }, []);
+  }, [user?.email]);
 
   const courses = schedule.courses.map((c) => c.courseCode);
   const similar = Array.from(
@@ -54,7 +64,8 @@ export function NotifySubscription() {
       {courses.length > 0 ? (
         <div className="space-y-2 text-sm">
           <p className="text-muted-foreground">
-            You will be emailed when someone books a room for:
+            You will be emailed when someone books a room for your courses.
+            Closely related catalog listings are included automatically.
           </p>
           <div className="flex flex-wrap gap-1.5">
             {courses.map((code) => (
@@ -71,7 +82,7 @@ export function NotifySubscription() {
         </div>
       ) : (
         <p className="text-sm text-muted-foreground">
-          Connect a calendar above first — subscriptions follow the courses on
+          Connect a calendar above first — announcements follow the courses on
           your schedule.
         </p>
       )}
@@ -93,10 +104,11 @@ export function NotifySubscription() {
             setError("");
             setStatus("");
             try {
+              setNotifyOptOut(false);
               const result = await subscribeToCourses({
                 email,
                 displayName: getDisplayName() || undefined,
-                courseCodes: [...courses, ...similar],
+                courseCodes: courses,
               });
               setNotifyEmail(result.email);
               setMailConfigured(result.mailConfigured);
@@ -113,12 +125,13 @@ export function NotifySubscription() {
         </DebouncedSubmitButton>
         <Button
           variant="outline"
-          disabled={!email.trim()}
+          disabled={!email.trim() && !user?.email}
           onClick={async () => {
             setError("");
             setStatus("");
             try {
-              const result = await unsubscribeEmail(email);
+              setNotifyOptOut(true);
+              const result = await unsubscribeEmail(email.trim() || user?.email || "");
               setNotifyEmail("");
               setStatus(`Removed ${result.removed} subscription(s).`);
             } catch (caught) {

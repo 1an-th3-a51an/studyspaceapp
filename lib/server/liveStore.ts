@@ -451,7 +451,21 @@ function createLocalStore(): LiveStore {
         createdAt: new Date(now).toISOString(),
       };
       const s = state();
-      booking.notified = await notifyBooking(booking, s.subscriptions, { hostEmail });
+      if (hostEmail) {
+        rememberLocalSubscription(s.subscriptions, {
+          deviceId,
+          email: hostEmail,
+          displayName,
+          courseCode,
+          createdAt: booking.createdAt,
+        });
+      }
+      const audience = new Set(bookingAudience(courseCode));
+      const extras = s.privatePools.flatMap((pool) => {
+        const code = pool.courseCode ? normalizeCourseCode(pool.courseCode) : "";
+        return code && audience.has(code) ? mailableFromPrivatePool(pool) : [];
+      });
+      booking.notified = await notifyBooking(booking, [...s.subscriptions, ...extras], { hostEmail });
       s.bookings.unshift(booking);
       const pool = hostedPoolFromBooking({
         id: crypto.randomUUID(),
@@ -706,6 +720,51 @@ function asPrivatePool(id: string, data: DocumentData): PrivatePool {
   };
 }
 
+/** Real emails already stored on a private pool for its course. */
+function mailableFromPrivatePool(pool: PrivatePool): CourseSubscription[] {
+  const courseCode = pool.courseCode ? normalizeCourseCode(pool.courseCode) : "";
+  if (!courseCode) return [];
+  const seen = new Set<string>();
+  const out: CourseSubscription[] = [];
+  for (const raw of [...pool.inviteeNetIds, ...pool.members.map((m) => m.netId)]) {
+    const email = raw.trim().toLowerCase();
+    if (!isEmailish(email) || seen.has(email)) continue;
+    seen.add(email);
+    out.push({ courseCode, email, deviceId: "", createdAt: pool.createdAt });
+  }
+  return out;
+}
+
+function hostEmailSubscription(data: DocumentData): CourseSubscription | null {
+  const email = typeof data.hostEmail === "string" ? data.hostEmail.trim().toLowerCase() : "";
+  const courseCode = typeof data.courseCode === "string" ? normalizeCourseCode(data.courseCode) : "";
+  if (!courseCode || !isEmailish(email)) return null;
+  return {
+    courseCode,
+    email,
+    deviceId: typeof data.deviceId === "string" ? data.deviceId : "",
+    createdAt: typeof data.createdAt === "string" ? data.createdAt : "",
+  };
+}
+
+function rememberLocalSubscription(
+  subscriptions: CourseSubscription[],
+  input: { deviceId: string; email: string; displayName?: string; courseCode: string; createdAt: string },
+) {
+  const address = input.email.trim().toLowerCase();
+  if (!isEmailish(address)) return;
+  if (subscriptions.some((sub) => sub.email === address && sub.courseCode === input.courseCode)) {
+    return;
+  }
+  subscriptions.push({
+    courseCode: input.courseCode,
+    email: address,
+    deviceId: input.deviceId,
+    displayName: input.displayName,
+    createdAt: input.createdAt,
+  });
+}
+
 /** Strip undefined so Firestore accepts the document. */
 function compact(value: Record<string, unknown>): Record<string, unknown> {
   const out: Record<string, unknown> = {};
@@ -816,6 +875,28 @@ function createFirestoreStore(): LiveStore {
     return snaps.flatMap((snap) => snap.docs.map((d) => asSubscription(d.data())));
   };
 
+  const loadClassmates = async (courseCodes: string[]) => {
+    const unique = Array.from(new Set(courseCodes));
+    const [subs, bookingSnaps, poolSnaps] = await Promise.all([
+      loadSubscriptions(unique),
+      Promise.all(unique.map((code) => db.collection(COL_BOOKINGS).where("courseCode", "==", code).get())),
+      Promise.all(unique.map((code) => db.collection(COL_PRIVATE).where("courseCode", "==", code).get())),
+    ]);
+    const extras: CourseSubscription[] = [];
+    for (const snap of bookingSnaps) {
+      for (const doc of snap.docs) {
+        const rec = hostEmailSubscription(doc.data());
+        if (rec) extras.push(rec);
+      }
+    }
+    for (const snap of poolSnaps) {
+      for (const doc of snap.docs) {
+        extras.push(...mailableFromPrivatePool(asPrivatePool(doc.id, doc.data())));
+      }
+    }
+    return [...subs, ...extras];
+  };
+
   const snapshot = async (courseCode: string, deviceId: string, now: number) => {
     const similar = similarCourses(courseCode).map((c) => c.courseCode);
     const [queue, pools, bookings] = await Promise.all([
@@ -920,11 +1001,25 @@ function createFirestoreStore(): LiveStore {
         createdAt: new Date(now).toISOString(),
       };
       const audience = bookingAudience(courseCode);
-      booking.notified = await notifyBooking(booking, await loadSubscriptions(audience), {
+      if (hostEmail && isEmailish(hostEmail)) {
+        const address = hostEmail.trim().toLowerCase();
+        await db.collection(COL_SUBSCRIPTIONS).doc(subscriptionDocId(courseCode, address)).set({
+          courseCode,
+          email: address,
+          deviceId,
+          displayName,
+          createdAt: booking.createdAt,
+        });
+      }
+      booking.notified = await notifyBooking(booking, await loadClassmates(audience), {
         hostEmail,
       });
 
-      const payload = compactDeep({ ...booking, id: undefined }) as Record<string, unknown>;
+      const payload = compactDeep({
+        ...booking,
+        id: undefined,
+        hostEmail: hostEmail?.trim().toLowerCase(),
+      }) as Record<string, unknown>;
       const poolRef = db.collection(COL_POOLS).doc();
       const pool = hostedPoolFromBooking({
         id: poolRef.id,

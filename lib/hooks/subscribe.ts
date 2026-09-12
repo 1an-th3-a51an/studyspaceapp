@@ -40,7 +40,11 @@ export async function unsubscribeEmail(email: string): Promise<{ removed: number
   const res = await apiFetch("/api/subscribe", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ action: "unsubscribe", email }),
+    body: JSON.stringify({
+      action: "unsubscribe",
+      deviceId: ensureDeviceId(),
+      email,
+    }),
   });
   if (!res.ok) throw new Error(await readError(res));
   return (await res.json()) as { removed: number };

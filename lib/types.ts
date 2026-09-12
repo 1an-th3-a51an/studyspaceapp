@@ -122,13 +122,18 @@ export type RoomBooking = {
 export type BookingNotifyResult = {
   /** Distinct addresses the announcement was addressed to. */
   recipients: number;
-  /** Courses whose subscribers were included, starting with the host's. */
+  /** Courses whose classmates were included, starting with the host's. */
   courses: string[];
   delivery: "sent" | "logged" | "skipped" | "failed";
   detail?: string;
+  /** False when RESEND_API_KEY / MAIL_FROM are missing; nothing was delivered. */
+  mailConfigured: boolean;
 };
 
-/** An email address opted in to announcements for one course. */
+/**
+ * An email we can write to for a course: a signed-in Yale classmate with
+ * that course on their schedule, or someone who opted in on Connect.
+ */
 export type CourseSubscription = {
   courseCode: string;
   email: string;

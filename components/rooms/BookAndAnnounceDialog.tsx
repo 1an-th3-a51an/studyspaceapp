@@ -132,11 +132,7 @@ export function BookAndAnnounceDialog({
       if (email.trim()) {
         setNotifyEmail(email.trim());
         const codes = Array.from(
-          new Set([
-            resolvedCourse,
-            ...courses.map((c) => c.courseCode),
-            ...similar.map((a) => a.courseCode),
-          ]),
+          new Set([resolvedCourse, ...courses.map((c) => c.courseCode)]),
         ).filter((c) => isCanonicalCourseCode(c));
         await subscribeToCourses({
           email: email.trim(),
@@ -160,12 +156,19 @@ export function BookAndAnnounceDialog({
       const karma = recordBooking(booking.spotName);
       const lastDelta = karma.events[0]?.delta ?? 0;
       const karmaNote = lastDelta < 0 ? ` · ${lastDelta} karma (heavy booking day)` : " · +2 karma";
+      const mailNote =
+        notified?.delivery === "sent" && notified.recipients > 0
+          ? ` · emailed ${notified.recipients} classmate${notified.recipients === 1 ? "" : "s"}`
+          : notified?.delivery === "logged"
+            ? ` · ${notified.detail ?? "email not configured (RESEND_API_KEY / MAIL_FROM)"}`
+            : notified?.delivery === "failed"
+              ? ` · email failed${notified.detail ? `: ${notified.detail}` : ""}`
+              : notified?.detail
+                ? ` · ${notified.detail}`
+                : "";
       announceJoin({
         title: `You booked ${booking.spotName}`,
-        detail:
-          notified && notified.recipients > 0
-            ? `${booking.courseCode} · ${booking.capacity} seat${booking.capacity === 1 ? "" : "s"} · emailed ${notified.recipients} classmate${notified.recipients === 1 ? "" : "s"}${karmaNote}`
-            : `${booking.courseCode} · ${booking.capacity} seat${booking.capacity === 1 ? "" : "s"}${karmaNote}`,
+        detail: `${booking.courseCode} · ${booking.capacity} seat${booking.capacity === 1 ? "" : "s"}${mailNote}${karmaNote}`,
       });
 
       onOpenChange(false);

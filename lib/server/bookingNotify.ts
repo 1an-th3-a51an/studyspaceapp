@@ -1,5 +1,5 @@
 import { similarCourses } from "@/lib/courseSimilarity";
-import { sendMail } from "@/lib/server/mailer";
+import { isMailConfigured, sendMail } from "@/lib/server/mailer";
 import { findSpot } from "@/lib/spots";
 import type { BookingNotifyResult, CourseSubscription, RoomBooking } from "@/lib/types";
 
@@ -7,9 +7,10 @@ import type { BookingNotifyResult, CourseSubscription, RoomBooking } from "@/lib
  * Who hears about a booking: the host's class first, then courses with
  * similar catalog descriptions.
  *
- * This is opt-in rather than a class roster. The app has no Yale directory
- * access and no OAuth, so "everyone in the class" means everyone who put that
- * course on their schedule and gave the app an address to write to.
+ * Recipients are classmates we already have a real email for — signed-in
+ * yale.edu accounts with that course on their schedule (synced into
+ * course_subscriptions), plus anyone who opted in on Connect, plus emails
+ * stored on bookings/pools for those courses. The booker is never included.
  */
 export function bookingAudience(courseCode: string): string[] {
   return [courseCode, ...similarCourses(courseCode).map((c) => c.courseCode)];
@@ -47,8 +48,8 @@ export function composeBookingEmail(booking: RoomBooking): {
     "",
     `Say you are coming on the Pools page: /pools?course=${encodeURIComponent(booking.courseCode)}`,
     "",
-    "You are getting this because you subscribed to booking announcements for",
-    "this course or a closely related one in YaleBooking.",
+    "You are getting this because you are signed in to YaleBooking with this",
+    "course on your schedule, or you subscribed to booking announcements.",
   );
 
   return {
@@ -57,7 +58,7 @@ export function composeBookingEmail(booking: RoomBooking): {
   };
 }
 
-/** Email a booking to everyone subscribed to its course or a similar-description one. */
+/** Email a booking to classmates in the class (and similar catalog courses). */
 export async function notifyBooking(
   booking: RoomBooking,
   subscribers: CourseSubscription[],
@@ -66,6 +67,7 @@ export async function notifyBooking(
   const courses = bookingAudience(booking.courseCode);
   const allowed = new Set(courses);
   const hostEmail = options?.hostEmail?.trim().toLowerCase();
+  const mailConfigured = isMailConfigured();
   // Never email the host their own announcement (same device or same address).
   const recipients = Array.from(
     new Set(
@@ -91,5 +93,6 @@ export async function notifyBooking(
     ),
     delivery: result.delivery,
     detail: result.detail,
+    mailConfigured,
   };
 }

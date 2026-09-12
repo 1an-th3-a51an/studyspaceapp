@@ -8,6 +8,7 @@ export const STORAGE_KEYS = {
   gcalDeadlines: "studyspace.gcalDeadlines",
   coursetableDeadlines: "studyspace.coursetableDeadlines",
   notifyEmail: "studyspace.notifyEmail",
+  notifyOptOut: "studyspace.notifyOptOut",
   localPools: "studyspace.localPools",
   examUrgency: "studyspace.examUrgency",
   includeCoffeeShops: "studyspace.includeCoffeeShops",
@@ -77,6 +78,21 @@ export function getNotifyEmail(): string {
 export function setNotifyEmail(email: string) {
   if (!canUseStorage()) return;
   localStorage.setItem(STORAGE_KEYS.notifyEmail, email.trim());
+}
+
+/** Fired when the user opts out of (or back into) booking announcement emails. */
+export const NOTIFY_OPT_OUT_EVENT = "studyspace:notify-opt-out";
+
+export function getNotifyOptOut(): boolean {
+  if (!canUseStorage()) return false;
+  return localStorage.getItem(STORAGE_KEYS.notifyOptOut) === "true";
+}
+
+export function setNotifyOptOut(on: boolean) {
+  if (!canUseStorage()) return;
+  if (on) localStorage.setItem(STORAGE_KEYS.notifyOptOut, "true");
+  else localStorage.removeItem(STORAGE_KEYS.notifyOptOut);
+  window.dispatchEvent(new Event(NOTIFY_OPT_OUT_EVENT));
 }
 
 export function readJson<T>(key: string, fallback: T): T {

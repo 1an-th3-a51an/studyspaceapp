@@ -47,8 +47,9 @@ export default function ConnectPage() {
         <CardHeader>
           <CardTitle>Booking announcements</CardTitle>
           <CardDescription>
-            Optional. Get an email when a classmate books a room for one of your
-            courses, or a closely related one.
+            Signed-in Yale accounts with these courses on their schedule are
+            emailed when a classmate books a room. Use this form for an extra
+            address, or to unsubscribe.
           </CardDescription>
         </CardHeader>
         <CardContent>
