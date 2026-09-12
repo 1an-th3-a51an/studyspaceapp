@@ -3,9 +3,8 @@
 import Link from "next/link";
 import { CourseTableExportHelp } from "@/components/connect/CourseTableExportHelp";
 import { IcsDropzone } from "@/components/connect/IcsDropzone";
-import { NetIdForm } from "@/components/connect/NetIdForm";
+import { NameForm } from "@/components/connect/NameForm";
 import { NotifySubscription } from "@/components/connect/NotifySubscription";
-import { TextPasteFallback } from "@/components/connect/TextPasteFallback";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -23,19 +22,20 @@ export default function ConnectPage() {
           Connect your schedule
         </h1>
         <p className="max-w-2xl text-sm leading-6 text-muted-foreground">
-          NetID is optional and local. CourseTable access is via .ics export —
-          this app never collects a Yale password and never talks to Canvas.
+          Just a name, like when2meet, or sign in with your Yale Google account.
+          CourseTable access is via .ics export — this app never collects a Yale
+          password and never talks to Canvas.
         </p>
       </div>
       <Card>
         <CardHeader>
-          <CardTitle>Identity</CardTitle>
+          <CardTitle>Who you are</CardTitle>
           <CardDescription>
-            A deviceId UUID is created in localStorage on first visit.
+            Shown to classmates on pools and bookings.
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <NetIdForm />
+          <NameForm />
         </CardContent>
       </Card>
       <CourseTableExportHelp />
@@ -43,17 +43,6 @@ export default function ConnectPage() {
         <IcsDropzone label="Google Calendar .ics" source="gcal" />
         <IcsDropzone label="CourseTable .ics" source="coursetable-ics" />
       </div>
-      <Card>
-        <CardHeader>
-          <CardTitle>Text-paste fallback</CardTitle>
-          <CardDescription>
-            If you cannot upload a file, paste ICS or timestamped lines.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <TextPasteFallback />
-        </CardContent>
-      </Card>
       <Card>
         <CardHeader>
           <CardTitle>Booking announcements</CardTitle>
