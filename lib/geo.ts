@@ -1,3 +1,4 @@
+import snapshot from "@/lib/data/courseTableBuildings.json";
 import type { StudyRecommendation } from "@/lib/types";
 
 export type LatLng = { lat: number; lng: number };
@@ -9,6 +10,9 @@ export type Building = {
   point: LatLng;
   /** Lowercase substrings that identify this building in a free-text location. */
   aliases: string[];
+  /** CourseTable building code (WLH, DL, …). Absent for landmark-only pins. */
+  code?: string;
+  source: "coursetable" | "landmark";
 };
 
 export type OriginChoice =
@@ -21,156 +25,72 @@ export type OriginChoice =
 export type ResolvedOrigin = {
   label: string;
   detail?: string;
-  /** Null when the starting room is not in the building database. */
+  /** Null when the starting room is not in the CourseTable building table. */
   point: LatLng | null;
   placed: boolean;
 };
 
 export type LocationPlacement =
-  | { ok: true; building: Building }
+  | { ok: true; building: Building; matchedBy: "code" | "name" | "alias"; alias: string }
   | { ok: false; query: string };
 
-// Average campus walking pace and a detour factor for street grids
-// (straight-line distance under-counts real sidewalks).
+type CourseTableBuildingRow = {
+  code: string;
+  name: string;
+  lat: number;
+  lng: number;
+  aliases?: string[];
+};
+
 const WALK_METERS_PER_MINUTE = 80;
 const DETOUR_FACTOR = 1.3;
 
-/** Yale buildings that show up as class locations or landmarks. */
-export const BUILDINGS: Building[] = [
-  {
-    id: "davies",
-    name: "Davies Auditorium (Becton Center)",
-    address: "15 Prospect St",
-    point: { lat: 41.31267, lng: -72.92512 },
-    aliases: ["davies", "becton", "bct"],
-  },
-  {
-    id: "luce",
-    name: "Luce Hall",
-    address: "34 Hillhouse Ave",
-    point: { lat: 41.31444, lng: -72.92435 },
-    aliases: ["luce"],
-  },
-  {
-    id: "hq",
-    name: "Humanities Quadrangle",
-    address: "320 York St",
-    point: { lat: 41.31231, lng: -72.92913 },
-    aliases: ["hq", "humanities quad"],
-  },
-  {
-    id: "yuag",
-    name: "Yale University Art Gallery",
-    address: "1111 Chapel St",
-    point: { lat: 41.30844, lng: -72.93088 },
-    aliases: ["yuag", "art gallery"],
-  },
-  {
-    id: "17-hillhouse",
-    name: "17 Hillhouse Avenue",
-    address: "17 Hillhouse Ave",
-    point: { lat: 41.31276, lng: -72.92346 },
-    aliases: ["17 hillhouse"],
-  },
-  {
-    id: "akw",
-    name: "Arthur K. Watson Hall",
-    address: "51 Prospect St",
-    point: { lat: 41.31308, lng: -72.92485 },
-    aliases: ["akw", "watson"],
-  },
-  {
-    id: "sss",
-    name: "Sheffield-Sterling-Strathcona Hall",
-    address: "1 Prospect St",
-    point: { lat: 41.31193, lng: -72.92522 },
-    aliases: ["sss", "strathcona"],
-  },
-  {
-    id: "dunham",
-    name: "Dunham Laboratory",
-    address: "10 Hillhouse Ave",
-    point: { lat: 41.31232, lng: -72.92454 },
-    aliases: ["dunham", "dl"],
-  },
-  {
-    id: "mason",
-    name: "Mason Laboratory",
-    address: "9 Hillhouse Ave",
-    point: { lat: 41.31216, lng: -72.92364 },
-    aliases: ["mason", "ml"],
-  },
-  {
-    id: "wlh",
-    name: "William L. Harkness Hall",
-    address: "100 Wall St",
-    // College & Wall, SE corner of Cross Campus — not High St / Sterling and not Phelps Gate.
-    point: { lat: 41.31083, lng: -72.92778 },
-    aliases: [
-      "william l. harkness",
-      "william l harkness",
-      "w. l. harkness",
-      "w.l. harkness",
-      "harkness hall",
-      "harkness",
-      "wlh",
-    ],
-  },
-  {
-    id: "lc",
-    name: "Linsly-Chittenden Hall",
-    address: "63 High St",
-    point: { lat: 41.3086, lng: -72.92948 },
-    aliases: ["lc", "linsly", "chittenden"],
-  },
-  {
-    id: "kbt",
-    name: "Kline Biology Tower",
-    address: "219 Prospect St",
-    point: { lat: 41.31724, lng: -72.92255 },
-    aliases: ["kbt", "kline biology", "science hill"],
-  },
-  {
-    id: "sterling",
-    name: "Sterling Memorial Library",
-    address: "120 High St",
-    point: { lat: 41.31146, lng: -72.92894 },
-    aliases: ["sterling", "sml"],
-  },
-  {
-    id: "bass",
-    name: "Bass Library",
-    address: "110 Wall St",
-    point: { lat: 41.3109, lng: -72.928 },
-    aliases: ["bass"],
-  },
-  {
-    id: "rosenkranz",
-    name: "Rosenkranz Hall",
-    address: "125 Prospect St",
-    point: { lat: 41.31385, lng: -72.92355 },
-    aliases: ["rosenkranz", "rkz"],
-  },
-  {
-    id: "haas",
-    name: "Haas Family Arts Library",
-    address: "180 York St",
-    point: { lat: 41.30877, lng: -72.93189 },
-    aliases: ["haas", "arts library"],
-  },
-  {
-    id: "marx",
-    name: "Marx Science and Social Science Library",
-    address: "219 Prospect St",
-    point: { lat: 41.31724, lng: -72.92255 },
-    aliases: ["marx", "csssi"],
-  },
+const rows = (snapshot as { buildings: CourseTableBuildingRow[] }).buildings;
+
+function normalize(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/&amp;/g, "&")
+    .replace(/[.,'’]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function tokenBoundaryPattern(alias: string): RegExp {
+  const escaped = alias.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  // 1–2 char CourseTable codes ("DL", "PH", "S") only count with a room number
+  // or as the whole query, so "S&DS 2380" does not become Sage Hall.
+  if (alias.length <= 2) {
+    return new RegExp(`(^|[^a-z0-9])${escaped}(?=\\s+\\d|\\s+[a-z]\\d|$)`, "i");
+  }
+  return new RegExp(`(^|[^a-z0-9])${escaped}([^a-z0-9]|$)`, "i");
+}
+
+function fromCourseTable(row: CourseTableBuildingRow): Building {
+  const aliases = [...new Set([row.code, row.name, ...(row.aliases ?? [])].map(normalize).filter(Boolean))];
+  return {
+    id: row.code.toLowerCase(),
+    code: row.code,
+    name: row.name,
+    address: row.code,
+    point: { lat: row.lat, lng: row.lng },
+    aliases,
+    source: "coursetable",
+  };
+}
+
+/**
+ * Manual starting points only. Never used as a fallback when a class room
+ * is missing from CourseTable — that would revive the fake Phelps pin.
+ */
+const LANDMARK_ONLY: Building[] = [
   {
     id: "old-campus",
     name: "Old Campus (Phelps Gate)",
     address: "344 College St",
     point: { lat: 41.30844, lng: -72.92815 },
-    aliases: ["old campus", "phelps"],
+    aliases: ["old campus"],
+    source: "landmark",
   },
   {
     id: "cross-campus",
@@ -178,8 +98,30 @@ export const BUILDINGS: Building[] = [
     address: "Cross Campus",
     point: { lat: 41.3106, lng: -72.928 },
     aliases: ["cross campus"],
+    source: "landmark",
   },
 ];
+
+/** CourseTable buildings (source of truth) plus opt-in landmarks. */
+export const BUILDINGS: Building[] = [
+  ...rows.map(fromCourseTable),
+  ...LANDMARK_ONLY,
+];
+
+const BY_ID = new Map(BUILDINGS.map((b) => [b.id, b]));
+const COURSE_TABLE = BUILDINGS.filter((b) => b.source === "coursetable");
+const PREFIX_CODES = new Set(
+  COURSE_TABLE.flatMap((b) => {
+    const code = b.code?.toLowerCase();
+    if (!code) return [];
+    return COURSE_TABLE.some((other) => {
+      const otherCode = other.code?.toLowerCase();
+      return Boolean(otherCode && otherCode !== code && otherCode.startsWith(code));
+    })
+      ? [code]
+      : [];
+  }),
+);
 
 /** Landmarks offered as manual starting points on the rooms page. */
 export const LANDMARK_IDS = [
@@ -193,41 +135,98 @@ export const LANDMARK_IDS = [
   "kbt",
 ] as const;
 
+/** Older landmark ids → CourseTable building ids. */
+const ID_ALIASES: Record<string, string> = {
+  sterling: "sml",
+  kbt: "kt",
+};
+
 export const DEFAULT_LANDMARK_ID = "old-campus";
 
 export function getBuilding(id: string): Building | undefined {
-  return BUILDINGS.find((b) => b.id === id);
+  const key = ID_ALIASES[id.toLowerCase()] ?? id.toLowerCase();
+  return BY_ID.get(key) ?? BUILDINGS.find((b) => b.code?.toLowerCase() === key);
 }
 
-/** Match a free-text class location like "Davies Auditorium" or "HQ 107" to a building. */
+/** Match a free-text class location like "WLH 011" or "William L. Harkness Hall". */
 export function findBuilding(location: string | undefined): Building | undefined {
   const placed = placeLocation(location);
   return placed.ok ? placed.building : undefined;
 }
 
-/** Look up a class/room string. Never invents a building if nothing matches. */
+/**
+ * Look up a class/room string against CourseTable buildings.
+ * Never invents Phelps Gate (or any other pin) if nothing matches.
+ */
 export function placeLocation(location: string | undefined): LocationPlacement {
   const query = location?.trim() ?? "";
   if (!query) return { ok: false, query };
-  const haystack = query.toLowerCase();
-  let best: { building: Building; aliasLen: number } | undefined;
-  for (const building of BUILDINGS) {
+  const haystack = normalize(query);
+  let best: { building: Building; alias: string; matchedBy: "code" | "name" | "alias" } | undefined;
+
+  for (const building of COURSE_TABLE) {
     for (const alias of building.aliases) {
-      const trimmed = alias.trim();
-      if (!trimmed) continue;
-      const escaped = trimmed.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-      if (!new RegExp(`(^|[^a-z0-9])${escaped}([^a-z0-9]|$)`).test(haystack)) continue;
-      if (!best || trimmed.length > best.aliasLen) {
-        best = { building, aliasLen: trimmed.length };
+      if (!alias || !tokenBoundaryPattern(alias).test(haystack)) continue;
+      const matchedBy: "code" | "name" | "alias" =
+        alias === building.code?.toLowerCase()
+          ? "code"
+          : alias === normalize(building.name)
+            ? "name"
+            : "alias";
+      // BASS is a prefix of BASSLB — a bare "Bass C10F" is not Bass Center.
+      if (
+        matchedBy === "code" &&
+        PREFIX_CODES.has(alias) &&
+        !new RegExp(`(^|[^a-z0-9])${alias}(?=\\s+\\d|$)`, "i").test(haystack)
+      ) {
+        continue;
+      }
+      if (!best || alias.length > best.alias.length) {
+        best = { building, alias, matchedBy };
       }
     }
   }
-  return best ? { ok: true, building: best.building } : { ok: false, query };
+
+  return best
+    ? { ok: true, building: best.building, matchedBy: best.matchedBy, alias: best.alias }
+    : { ok: false, query };
+}
+
+/** Try the room string, then "COURSE · room". Course codes alone are not buildings. */
+export function resolveClassOrigin(
+  location?: string,
+  courseCode?: string,
+): LocationPlacement {
+  const attempts = [
+    location,
+    location && courseCode ? `${courseCode} · ${location}` : undefined,
+  ];
+  for (const attempt of attempts) {
+    const placed = placeLocation(attempt);
+    if (placed.ok) return placed;
+  }
+  return { ok: false, query: location?.trim() || courseCode?.trim() || "" };
 }
 
 export function unplacedLocationMessage(query: string): string {
   const label = query.trim() || "this room";
-  return `"${label}" is not in the database — no map pin and no walking time until you pick GPS or a known landmark.`;
+  return `"${label}" is not in CourseTable's building list — no map pin and no walking time until you pick GPS or a known landmark.`;
+}
+
+/** Snap a study-spot label onto CourseTable coords when the building is known. */
+export function courseTablePointForSpot(...queries: Array<string | undefined>): LatLng | undefined {
+  for (const query of queries) {
+    if (!query?.trim()) continue;
+    const placed = placeLocation(query);
+    if (!placed.ok) continue;
+    if (placed.matchedBy === "name" || placed.matchedBy === "alias" || placed.alias.length >= 5) {
+      return placed.building.point;
+    }
+    if (placed.matchedBy === "code" && /\b[a-z]{2,6}\d{0,3}\s+\d/i.test(query)) {
+      return placed.building.point;
+    }
+  }
+  return undefined;
 }
 
 export function haversineMeters(a: LatLng, b: LatLng): number {

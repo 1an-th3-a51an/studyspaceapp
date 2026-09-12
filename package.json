@@ -9,6 +9,7 @@
     "lint": "eslint",
     "import:coursetable": "node scripts/import-coursetable.mjs --catalog scripts/fixtures/catalog-202603.json --term \"Fall 2026\"",
     "import:coursetable:live": "node scripts/import-coursetable.mjs --fetch 202603 --term \"Fall 2026\"",
+    "import:coursetable:buildings": "node scripts/import-coursetable-buildings.mjs",
     "import:libcal": "node scripts/import-libcal-spaces.mjs",
     "test:libcal": "node scripts/test-libcal-slots.mjs",
     "audit:placement": "node scripts/audit-room-placement.mjs"

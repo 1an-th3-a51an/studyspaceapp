@@ -25,9 +25,9 @@ import { estimateActivity } from "@/lib/activity";
 import { formatWhen } from "@/lib/format";
 import { readTune } from "@/lib/tune";
 import {
-  findBuilding,
   getBuilding,
   LANDMARK_IDS,
+  resolveClassOrigin,
   unplacedLocationMessage,
   type LatLng,
   type OriginChoice,
@@ -178,10 +178,10 @@ export default function RoomsPage() {
     return nextClass;
   }, [activeChoice, meetings, now, nextClass]);
 
-  const anchorBuilding = useMemo(
-    () => findBuilding(anchorMeeting?.location),
-    [anchorMeeting],
-  );
+  const anchorBuilding = useMemo(() => {
+    const placed = resolveClassOrigin(anchorMeeting?.location, anchorMeeting?.courseCode);
+    return placed.ok ? placed.building : undefined;
+  }, [anchorMeeting]);
 
   const origin: ResolvedOrigin | null = useMemo(() => {
     if (activeChoice.kind === "gps") {
@@ -221,7 +221,7 @@ export default function RoomsPage() {
     return {
       label: "No starting room",
       detail:
-        "No classes loaded. Pick GPS or a known landmark to rank by walking time. Unmapped rooms stay off the map — they are not pinned at Old Campus.",
+        "No classes loaded. Pick GPS or a known landmark to rank by walking time. Rooms CourseTable does not list stay off the map — they are not pinned at Old Campus.",
       point: null,
       placed: false,
     };
@@ -339,8 +339,8 @@ export default function RoomsPage() {
           Study spots
         </h1>
         <p className="text-sm text-muted-foreground">
-          Ranked by walking time when the starting room is in the building
-          database. The top reservable room deep-links to its Yale page —
+          Ranked by walking time when CourseTable knows the starting
+          building. The top reservable room deep-links to its Yale page —
           Yale shows live availability there. Then your class (and courses
           with similar catalog descriptions) can hear about it on Pools.
         </p>
@@ -415,10 +415,11 @@ export default function RoomsPage() {
         </p>
         {origin && !origin.placed ? (
           <p className="text-xs text-muted-foreground">
-            Placement audit: this starting room is not in the database. Study
-            spots stay listed, but the map will not invent a pin at Phelps Gate
-            and walk times stay unknown until you pick GPS or a landmark.
-            Recheck codes with <code className="font-mono">npm run audit:placement</code>.
+            Placement audit: CourseTable has no coordinates for this starting
+            room. Study spots stay listed, but the map will not invent a pin
+            at Phelps Gate and walk times stay unknown until you pick GPS or
+            a landmark. Recheck codes with{" "}
+            <code className="font-mono">npm run audit:placement</code>.
           </p>
         ) : null}
         {schedule.ready && schedule.courses.length === 0 ? (

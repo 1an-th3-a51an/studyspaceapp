@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 /**
- * Audit whether class/room strings map to a building with real coordinates.
+ * Audit whether class/room strings map to a CourseTable building.
  *
- * Reads aliases and points from lib/geo.ts — the same dataset the Rooms map
+ * Reads lib/data/courseTableBuildings.json — the same table the Rooms map
  * uses. Unknown codes stay unplaced. This never invents Old Campus / Phelps Gate.
  *
  *   npm run audit:placement
@@ -14,37 +14,61 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-const GEO = resolve(HERE, "../lib/geo.ts");
+const TABLE = resolve(HERE, "../lib/data/courseTableBuildings.json");
 const DEMO = resolve(HERE, "../lib/demo/handsomeDan.ts");
 
-const src = readFileSync(GEO, "utf8");
-const buildings = [];
-const blockRe =
-  /\{\s*id:\s*"([^"]+)"[\s\S]*?name:\s*"([^"]+)"[\s\S]*?point:\s*\{\s*lat:\s*([-\d.]+),\s*lng:\s*([-\d.]+)\s*\}[\s\S]*?aliases:\s*\[([^\]]+)\]/g;
-for (const match of src.matchAll(blockRe)) {
-  const aliases = [...match[5].matchAll(/"([^"]+)"/g)].map((m) => m[1]);
-  buildings.push({
-    id: match[1],
-    name: match[2],
-    lat: Number(match[3]),
-    lng: Number(match[4]),
-    aliases,
-  });
+const data = JSON.parse(readFileSync(TABLE, "utf8"));
+const buildings = data.buildings ?? [];
+
+function normalize(value) {
+  return String(value ?? "")
+    .toLowerCase()
+    .replace(/&amp;/g, "&")
+    .replace(/[.,'’]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function tokenBoundaryPattern(alias) {
+  const escaped = alias.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  if (alias.length <= 2) {
+    return new RegExp(`(^|[^a-z0-9])${escaped}(?=\\s+\\d|\\s+[a-z]\\d|$)`, "i");
+  }
+  return new RegExp(`(^|[^a-z0-9])${escaped}([^a-z0-9]|$)`, "i");
+}
+
+const prefixCodes = new Set();
+for (const building of buildings) {
+  const code = String(building.code ?? "").toLowerCase();
+  if (!code) continue;
+  if (buildings.some((other) => {
+    const otherCode = String(other.code ?? "").toLowerCase();
+    return otherCode && otherCode !== code && otherCode.startsWith(code);
+  })) {
+    prefixCodes.add(code);
+  }
 }
 
 function placeLocation(location) {
   const query = location?.trim() ?? "";
   if (!query) return { ok: false, query };
-  const haystack = query.toLowerCase();
+  const haystack = normalize(query);
   let best;
   for (const building of buildings) {
-    for (const alias of building.aliases) {
-      const trimmed = alias.trim();
-      if (!trimmed) continue;
-      const escaped = trimmed.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-      if (!new RegExp(`(^|[^a-z0-9])${escaped}([^a-z0-9]|$)`).test(haystack)) continue;
-      if (!best || trimmed.length > best.aliasLen) {
-        best = { building, aliasLen: trimmed.length, query };
+    const code = String(building.code ?? "").toLowerCase();
+    const aliases = [building.code, building.name, ...(building.aliases ?? [])].map(normalize);
+    for (const alias of aliases) {
+      if (!alias || !tokenBoundaryPattern(alias).test(haystack)) continue;
+      const matchedBy = alias === code ? "code" : "name";
+      if (
+        matchedBy === "code" &&
+        prefixCodes.has(alias) &&
+        !new RegExp(`(^|[^a-z0-9])${alias}(?=\\s+\\d|$)`, "i").test(haystack)
+      ) {
+        continue;
+      }
+      if (!best || alias.length > best.aliasLen) {
+        best = { building, aliasLen: alias.length, query };
       }
     }
   }
@@ -66,36 +90,54 @@ const samples = [
   "DL 220",
   "HQ 107",
   "WLH 208",
+  "WLH 011",
   "William L. Harkness Hall 011",
   "BIOL 101 · William L. Harkness Hall 011",
   "Bass C10F",
+  "Bass Library",
   "YUAG AUD",
   "Unknown Hall 12",
+  "S&DS 2380",
   ...collectDemoLocations(),
   ...extra,
 ];
 const unique = [...new Set(samples.map((s) => s.trim()).filter(Boolean))];
 
 if (buildings.length === 0) {
-  console.error("Could not parse BUILDINGS from lib/geo.ts");
+  console.error("Could not read CourseTable buildings from lib/data/courseTableBuildings.json");
   process.exit(1);
 }
 
-console.log(`Buildings in database: ${buildings.length}`);
-console.log("query\tstatus\tbuilding\tlat\tlng");
+console.log(`CourseTable buildings: ${buildings.length}`);
+console.log("query\tstatus\tbuilding\tcode\tlat\tlng");
 let missing = 0;
+const phelps = buildings.find((b) => b.code === "PH");
 for (const query of unique) {
   const placed = placeLocation(query);
   if (placed.ok) {
     const b = placed.building;
-    console.log(`${query}\tplaced\t${b.name}\t${b.lat}\t${b.lng}`);
+    const fakePhelps =
+      b.code === "PH" && !/phelps|\bph\b/i.test(query) ? "\tERROR: unknown room pinned at Phelps" : "";
+    console.log(`${query}\tplaced\t${b.name}\t${b.code}\t${b.lat}\t${b.lng}${fakePhelps}`);
   } else {
     missing += 1;
-    console.log(`${query}\tnot in the database\t\t\t`);
+    console.log(`${query}\tnot in the database\t\t\t\t`);
   }
+}
+
+const wlh = placeLocation("William L. Harkness Hall 011");
+const wlhCode = placeLocation("WLH 011");
+if (!wlh.ok || wlh.building.code !== "WLH" || !wlhCode.ok) {
+  console.error("\nWLH lookup failed — CourseTable pin is not wired.");
+  process.exit(1);
+}
+if (phelps && Math.abs(wlh.building.lat - phelps.lat) < 1e-4 && Math.abs(wlh.building.lng - phelps.lng) < 1e-4) {
+  console.error("\nWLH is sitting on Phelps Hall coordinates.");
+  process.exit(1);
 }
 
 console.log(
   `\n${unique.length - missing} placed, ${missing} not in the database. Unplaced rooms must not be pinned at Phelps Gate.`,
 );
-process.exit(missing > 0 && extra.length > 0 && extra.every((q) => !placeLocation(q).ok) ? 0 : 0);
+console.log(`WLH origin: ${wlh.building.lat}, ${wlh.building.lng} (College & Wall)`);
+process.exit(0);

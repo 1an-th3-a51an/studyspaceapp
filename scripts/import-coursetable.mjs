@@ -19,6 +19,9 @@
  * Descriptions are written to lib/data/courseDescriptions.json so the client
  * bundle does not ship every catalog paragraph.
  *
+ * Building pins for the Rooms map come from CourseTable's
+ * buildingCoordinates.json via `npm run import:coursetable:buildings`.
+ *
  * Everything is written with explicit provenance so the app can tell the user
  * where a link came from.
  */

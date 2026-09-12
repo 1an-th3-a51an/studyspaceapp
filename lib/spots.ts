@@ -1,6 +1,7 @@
 import coffeeSnapshot from "@/lib/data/coffeeShops.json";
 import libcalSnapshot from "@/lib/data/libcalSpaces.json";
 import walkInSnapshot from "@/lib/data/walkInSpaces.json";
+import { courseTablePointForSpot } from "@/lib/geo";
 import type { StudyRecommendation } from "@/lib/types";
 
 /**
@@ -17,7 +18,7 @@ import type { StudyRecommendation } from "@/lib/types";
  * surveyed chair.
  */
 export type CapacitySource = "schedule.yale.edu" | "unknown";
-export type CoordSource = "building" | "address";
+export type CoordSource = "building" | "address" | "coursetable";
 
 export type StudySpot = StudyRecommendation & {
   /** Stable slug, used in URLs and as the booking key. */
@@ -33,6 +34,8 @@ export type StudySpot = StudyRecommendation & {
   libcalLid?: number;
   /** LibCal group id (`gid`) on schedule.yale.edu. */
   libcalGid?: number;
+  /** LibCal location name, e.g. "Bass Library". */
+  locationName?: string;
   /** Human-readable opening hours, when known. */
   hours?: string;
 };
@@ -50,6 +53,7 @@ type LibcalSpaceRow = {
   libcalLabel: string;
   libcalLid: number;
   libcalGid: number;
+  locationName?: string;
   capacity?: number;
   capacitySource: CapacitySource;
   description?: string;
@@ -90,41 +94,55 @@ function withUnknownWalk(
   };
 }
 
+/** Prefer CourseTable's building pin when the spot's building is in that table. */
+function withCourseTablePoint<T extends { name: string; address?: string; lat: number; lng: number; locationName?: string; coordSource?: CoordSource }>(
+  spot: T,
+): T {
+  const point = courseTablePointForSpot(spot.locationName, spot.address, spot.name);
+  if (!point) return spot;
+  return { ...spot, lat: point.lat, lng: point.lng, coordSource: "coursetable" };
+}
+
 function fromLibcal(row: LibcalSpaceRow): StudySpot {
-  return withUnknownWalk({
-    id: row.id,
-    kind: row.kind,
-    name: row.name,
-    address: row.address,
-    lat: row.lat,
-    lng: row.lng,
-    coordSource: row.coordSource ?? "building",
-    bookingUrl: row.bookingUrl,
-    libcalSpaceId: row.libcalSpaceId,
-    libcalLabel: row.libcalLabel,
-    libcalLid: row.libcalLid,
-    libcalGid: row.libcalGid,
-    capacity: row.capacity,
-    capacitySource: row.capacitySource,
-    description: row.description,
-    tags: row.tags,
-  });
+  return withUnknownWalk(
+    withCourseTablePoint({
+      id: row.id,
+      kind: row.kind,
+      name: row.name,
+      address: row.address,
+      lat: row.lat,
+      lng: row.lng,
+      locationName: row.locationName,
+      coordSource: row.coordSource ?? "building",
+      bookingUrl: row.bookingUrl,
+      libcalSpaceId: row.libcalSpaceId,
+      libcalLabel: row.libcalLabel,
+      libcalLid: row.libcalLid,
+      libcalGid: row.libcalGid,
+      capacity: row.capacity,
+      capacitySource: row.capacitySource,
+      description: row.description,
+      tags: row.tags,
+    }),
+  );
 }
 
 function fromWalkIn(row: WalkInRow): StudySpot {
-  return withUnknownWalk({
-    id: row.id,
-    kind: "room",
-    name: row.name,
-    address: row.address,
-    lat: row.lat,
-    lng: row.lng,
-    coordSource: row.coordSource ?? "building",
-    capacitySource: "unknown",
-    hours: row.hours,
-    description: row.description,
-    tags: row.tags,
-  });
+  return withUnknownWalk(
+    withCourseTablePoint({
+      id: row.id,
+      kind: "room",
+      name: row.name,
+      address: row.address,
+      lat: row.lat,
+      lng: row.lng,
+      coordSource: row.coordSource ?? "building",
+      capacitySource: "unknown",
+      hours: row.hours,
+      description: row.description,
+      tags: row.tags,
+    }),
+  );
 }
 
 function fromCoffee(row: CoffeeRow): StudySpot {

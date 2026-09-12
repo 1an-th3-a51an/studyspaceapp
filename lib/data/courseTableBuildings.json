@@ -1,0 +1,1350 @@
+{
+  "provenance": {
+    "kind": "coursetable-buildings",
+    "label": "CourseTable building coordinates",
+    "detail": "Pins come from CourseTable's published buildingCoordinates.json (the same file CourseTable maps use). Class strings match building codes and names. Unknown rooms are not placed at Phelps Gate.",
+    "source": "https://raw.githubusercontent.com/coursetable/coursetable/master/frontend/src/data/buildingCoordinates.json",
+    "generatedAt": "2026-09-12T03:24:45.570Z",
+    "catalogSeason": null,
+    "buildingCount": 124
+  },
+  "buildings": [
+    {
+      "code": "ABC",
+      "name": "Advanced Biosciences Center",
+      "lat": 41.257434031774665,
+      "lng": -72.98871189468626,
+      "aliases": [
+        "abc",
+        "advanced biosciences center",
+        "advanced biosciences",
+        "biosciences center"
+      ]
+    },
+    {
+      "code": "AKW",
+      "name": "Arthur K. Watson Hall",
+      "lat": 41.31373102352353,
+      "lng": -72.92467848613352,
+      "aliases": [
+        "akw",
+        "arthur k watson hall",
+        "arthur k watson",
+        "watson hall"
+      ]
+    },
+    {
+      "code": "ARNOLD",
+      "name": "Arnold Hall",
+      "lat": 41.31111584703277,
+      "lng": -72.93145949332182,
+      "aliases": [
+        "arnold",
+        "arnold hall"
+      ]
+    },
+    {
+      "code": "BAKER",
+      "name": "Baker Hall",
+      "lat": 41.314090903963915,
+      "lng": -72.92881249646113,
+      "aliases": [
+        "baker",
+        "baker hall"
+      ]
+    },
+    {
+      "code": "BASS",
+      "name": "Bass Center",
+      "lat": 41.31814628535684,
+      "lng": -72.92187340756624,
+      "aliases": [
+        "bass",
+        "bass center"
+      ]
+    },
+    {
+      "code": "BASSLB",
+      "name": "Bass Library",
+      "lat": 41.3107910782334,
+      "lng": -72.92728642184535,
+      "aliases": [
+        "basslb",
+        "bass library"
+      ]
+    },
+    {
+      "code": "BATTEL",
+      "name": "Battel Chapel",
+      "lat": 41.30942455663464,
+      "lng": -72.92753381817056,
+      "aliases": [
+        "battel",
+        "battel chapel"
+      ]
+    },
+    {
+      "code": "BCMM",
+      "name": "Boyer Ctr Molecular Medicine",
+      "lat": 41.30237844956022,
+      "lng": -72.93333086070494,
+      "aliases": [
+        "bcmm",
+        "boyer ctr molecular medicine",
+        "molecular medicine"
+      ]
+    },
+    {
+      "code": "BCT",
+      "name": "Becton Center",
+      "lat": 41.31263318651845,
+      "lng": -72.9251439342853,
+      "aliases": [
+        "bct",
+        "becton center",
+        "becton"
+      ]
+    },
+    {
+      "code": "BF",
+      "name": "Benjamin Franklin College",
+      "lat": 41.31482238286449,
+      "lng": -72.92518055364347,
+      "aliases": [
+        "bf",
+        "benjamin franklin college",
+        "benjamin franklin",
+        "franklin college"
+      ]
+    },
+    {
+      "code": "BK",
+      "name": "Berkeley College",
+      "lat": 41.31120671650738,
+      "lng": -72.92752417587039,
+      "aliases": [
+        "bk",
+        "berkeley college",
+        "berkeley"
+      ]
+    },
+    {
+      "code": "BM",
+      "name": "Bingham Hall",
+      "lat": 41.307583153819934,
+      "lng": -72.92876372607587,
+      "aliases": [
+        "bm",
+        "bingham hall",
+        "bingham"
+      ]
+    },
+    {
+      "code": "BML",
+      "name": "Brady Memorial Laboratory",
+      "lat": 41.30232619477571,
+      "lng": -72.93389757650974,
+      "aliases": [
+        "bml",
+        "brady memorial laboratory"
+      ]
+    },
+    {
+      "code": "BOWERS",
+      "name": "Bowers Hall",
+      "lat": 41.3171661947107,
+      "lng": -72.92379864007869,
+      "aliases": [
+        "bowers",
+        "bowers hall"
+      ]
+    },
+    {
+      "code": "BR",
+      "name": "Branford College",
+      "lat": 41.3095738490425,
+      "lng": -72.92928798045085,
+      "aliases": [
+        "br",
+        "branford college",
+        "branford"
+      ]
+    },
+    {
+      "code": "BRADY",
+      "name": "Brady Memorial Laboratory",
+      "lat": 41.30232619477571,
+      "lng": -72.93389757650974,
+      "aliases": [
+        "brady",
+        "brady memorial laboratory"
+      ]
+    },
+    {
+      "code": "BRBL",
+      "name": "Beinecke Rare Book Library",
+      "lat": 41.31145498755721,
+      "lng": -72.92740100091049,
+      "aliases": [
+        "brbl",
+        "beinecke rare book library",
+        "beinecke rare book",
+        "book library"
+      ]
+    },
+    {
+      "code": "CCAM",
+      "name": "Center for Collab Arts & Media",
+      "lat": 41.30767215979522,
+      "lng": -72.93203241436554,
+      "aliases": [
+        "ccam",
+        "center for collab arts & media",
+        "& media"
+      ]
+    },
+    {
+      "code": "CO100",
+      "name": "100 College Street",
+      "lat": 41.304584724534415,
+      "lng": -72.93242191389047,
+      "aliases": [
+        "co100",
+        "100 college street"
+      ]
+    },
+    {
+      "code": "CO101",
+      "name": "101 College Street",
+      "lat": 41.30365999578472,
+      "lng": -72.93058847740726,
+      "aliases": [
+        "co101",
+        "101 college street"
+      ]
+    },
+    {
+      "code": "CO451",
+      "name": "451 College Street",
+      "lat": 41.310198236350985,
+      "lng": -72.92620858251006,
+      "aliases": [
+        "co451",
+        "451 college street"
+      ]
+    },
+    {
+      "code": "CO47",
+      "name": "47 College Street (CLP)",
+      "lat": 41.3030988985994,
+      "lng": -72.93143469904182,
+      "aliases": [
+        "co47",
+        "47 college street (clp)",
+        "street (clp)"
+      ]
+    },
+    {
+      "code": "CO493",
+      "name": "493 College Street",
+      "lat": 41.311163808969496,
+      "lng": -72.92553312241378,
+      "aliases": [
+        "co493",
+        "493 college street"
+      ]
+    },
+    {
+      "code": "CR305",
+      "name": "305 Crown Street",
+      "lat": 41.307212060561575,
+      "lng": -72.932004677336,
+      "aliases": [
+        "cr305",
+        "305 crown street",
+        "crown street"
+      ]
+    },
+    {
+      "code": "CRB",
+      "name": "Chemistry Research Building",
+      "lat": 41.31930729291513,
+      "lng": -72.92258463524975,
+      "aliases": [
+        "crb",
+        "chemistry research building",
+        "chemistry research",
+        "research building"
+      ]
+    },
+    {
+      "code": "CRW353",
+      "name": "353 Crown St",
+      "lat": 41.30798289854696,
+      "lng": -72.93354190369091,
+      "aliases": [
+        "crw353",
+        "353 crown st",
+        "crown st"
+      ]
+    },
+    {
+      "code": "CSC",
+      "name": "Child Study Center",
+      "lat": 41.30427199488004,
+      "lng": -72.93343261007378,
+      "aliases": [
+        "csc",
+        "child study center",
+        "child study",
+        "study center"
+      ]
+    },
+    {
+      "code": "DAVIES",
+      "name": "Davies Auditorium, Becton Ctr",
+      "lat": 41.31263318651845,
+      "lng": -72.9251439342853,
+      "aliases": [
+        "davies",
+        "davies auditorium becton ctr",
+        "davies auditorium becton",
+        "becton ctr"
+      ]
+    },
+    {
+      "code": "DC",
+      "name": "Davenport College",
+      "lat": 41.31023890753107,
+      "lng": -72.93067566546466,
+      "aliases": [
+        "dc",
+        "davenport college",
+        "davenport"
+      ]
+    },
+    {
+      "code": "DL",
+      "name": "Dunham Laboratory",
+      "lat": 41.312384341858646,
+      "lng": -72.92448099143967,
+      "aliases": [
+        "dl",
+        "dunham laboratory",
+        "dunham"
+      ]
+    },
+    {
+      "code": "DOW",
+      "name": "Dow Hall",
+      "lat": 41.31132973058767,
+      "lng": -72.9238591415263,
+      "aliases": [
+        "dow",
+        "dow hall"
+      ]
+    },
+    {
+      "code": "DW",
+      "name": "Dwight Hall",
+      "lat": 41.30897623550323,
+      "lng": -72.92938599253918,
+      "aliases": [
+        "dw",
+        "dwight hall",
+        "dwight"
+      ]
+    },
+    {
+      "code": "EDG36",
+      "name": "36 Edgewood Ave. Sculpture Bld",
+      "lat": 41.309934012106666,
+      "lng": -72.93451992543416,
+      "aliases": [
+        "edg36",
+        "36 edgewood ave sculpture bld",
+        "sculpture bld"
+      ]
+    },
+    {
+      "code": "EDW380",
+      "name": "380 Edwards Street",
+      "lat": 41.319860267928476,
+      "lng": -72.9223750417634,
+      "aliases": [
+        "edw380",
+        "380 edwards street",
+        "edwards street"
+      ]
+    },
+    {
+      "code": "ELM143",
+      "name": "143 Elm Street",
+      "lat": 41.3091278626787,
+      "lng": -72.92545073087133,
+      "aliases": [
+        "elm143",
+        "143 elm street",
+        "elm street"
+      ]
+    },
+    {
+      "code": "ELM294",
+      "name": "Broadway Rehearsal Lofts",
+      "lat": 41.311540891632895,
+      "lng": -72.93040689895885,
+      "aliases": [
+        "elm294",
+        "broadway rehearsal lofts",
+        "rehearsal lofts"
+      ]
+    },
+    {
+      "code": "ES",
+      "name": "Ezra Stiles College",
+      "lat": 41.312696144585296,
+      "lng": -72.93108298796663,
+      "aliases": [
+        "es",
+        "ezra stiles college",
+        "ezra stiles",
+        "stiles college"
+      ]
+    },
+    {
+      "code": "ESC",
+      "name": "Environmental Sciences Center",
+      "lat": 41.316163169352315,
+      "lng": -72.92179491307243,
+      "aliases": [
+        "esc",
+        "environmental sciences center",
+        "environmental sciences",
+        "sciences center"
+      ]
+    },
+    {
+      "code": "EVANS",
+      "name": "Edward P Evans Hall",
+      "lat": 41.31501488137033,
+      "lng": -72.92036496366428,
+      "aliases": [
+        "evans",
+        "edward p evans hall",
+        "edward p evans",
+        "evans hall"
+      ]
+    },
+    {
+      "code": "GEO300",
+      "name": "300 George Street",
+      "lat": 41.30486874134103,
+      "lng": -72.93116553444393,
+      "aliases": [
+        "geo300",
+        "300 george street"
+      ]
+    },
+    {
+      "code": "GEO350",
+      "name": "350 George Street",
+      "lat": 41.30572664251657,
+      "lng": -72.93294169523924,
+      "aliases": [
+        "geo350",
+        "350 george street"
+      ]
+    },
+    {
+      "code": "GH",
+      "name": "Grace Hopper College",
+      "lat": 41.310072097175805,
+      "lng": -72.92743787695704,
+      "aliases": [
+        "gh",
+        "grace hopper college",
+        "grace hopper",
+        "hopper college"
+      ]
+    },
+    {
+      "code": "GR109",
+      "name": "109 Grove Street",
+      "lat": 41.31120342233769,
+      "lng": -72.92334813384463,
+      "aliases": [
+        "gr109",
+        "109 grove street",
+        "grove street"
+      ]
+    },
+    {
+      "code": "GREEN",
+      "name": "Green Hall (1156 Chapel)",
+      "lat": 41.30834541842922,
+      "lng": -72.9329498635376,
+      "aliases": [
+        "green",
+        "green hall (1156 chapel)",
+        "(1156 chapel)"
+      ]
+    },
+    {
+      "code": "HEN",
+      "name": "Hendrie Hall",
+      "lat": 41.30950184276861,
+      "lng": -72.92607962944736,
+      "aliases": [
+        "hen",
+        "hendrie hall",
+        "hendrie"
+      ]
+    },
+    {
+      "code": "HI26",
+      "name": "26 High Street",
+      "lat": 41.30699935590457,
+      "lng": -72.93127397629792,
+      "aliases": [
+        "hi26",
+        "26 high street"
+      ]
+    },
+    {
+      "code": "HIGH26",
+      "name": "26 High Street",
+      "lat": 41.30699935590457,
+      "lng": -72.93127397629792,
+      "aliases": [
+        "high26",
+        "26 high street"
+      ]
+    },
+    {
+      "code": "HLH17",
+      "name": "17 Hillhouse Avenue",
+      "lat": 41.31276197816036,
+      "lng": -72.92344607249976,
+      "aliases": [
+        "hlh17",
+        "17 hillhouse avenue"
+      ]
+    },
+    {
+      "code": "HLH24",
+      "name": "24 Hillhouse Avenue",
+      "lat": 41.31346810612274,
+      "lng": -72.92417909575559,
+      "aliases": [
+        "hlh24",
+        "24 hillhouse avenue"
+      ]
+    },
+    {
+      "code": "HLH28",
+      "name": "28 Hillhouse Avenue",
+      "lat": 41.31387375920964,
+      "lng": -72.92399274708755,
+      "aliases": [
+        "hlh28",
+        "28 hillhouse avenue"
+      ]
+    },
+    {
+      "code": "HLH31",
+      "name": "31 Hillhouse Avenue",
+      "lat": 41.313959950893874,
+      "lng": -72.9230937678915,
+      "aliases": [
+        "hlh31",
+        "31 hillhouse avenue"
+      ]
+    },
+    {
+      "code": "HLH37",
+      "name": "37 Hillhouse Avenue",
+      "lat": 41.31448540928543,
+      "lng": -72.92273845314004,
+      "aliases": [
+        "hlh37",
+        "37 hillhouse avenue"
+      ]
+    },
+    {
+      "code": "HLH46",
+      "name": "46 Hillhouse Avenue",
+      "lat": 41.31507427915468,
+      "lng": -72.9236191512048,
+      "aliases": [
+        "hlh46",
+        "46 hillhouse avenue"
+      ]
+    },
+    {
+      "code": "HLH51",
+      "name": "51 Hillhouse Avenue",
+      "lat": 41.31514721344552,
+      "lng": -72.92259155537425,
+      "aliases": [
+        "hlh51",
+        "51 hillhouse avenue"
+      ]
+    },
+    {
+      "code": "HLH55",
+      "name": "55 Hillhouse",
+      "lat": 41.31546267038246,
+      "lng": -72.92239483120967,
+      "aliases": [
+        "hlh55",
+        "55 hillhouse"
+      ]
+    },
+    {
+      "code": "HOPE",
+      "name": "Hope",
+      "lat": 41.30224490496678,
+      "lng": -72.93333966692174,
+      "aliases": [
+        "hope"
+      ]
+    },
+    {
+      "code": "HQ",
+      "name": "Humanities Quadrangle",
+      "lat": 41.31216239229574,
+      "lng": -72.92953255286905,
+      "aliases": [
+        "hq",
+        "humanities quadrangle"
+      ]
+    },
+    {
+      "code": "ISM",
+      "name": "Institute of Sacred Music",
+      "lat": 41.323176366099794,
+      "lng": -72.92377064932184,
+      "aliases": [
+        "ism",
+        "institute of sacred music",
+        "sacred music"
+      ]
+    },
+    {
+      "code": "JE",
+      "name": "Jonathan Edwards College",
+      "lat": 41.308936948645595,
+      "lng": -72.93041344505043,
+      "aliases": [
+        "je",
+        "jonathan edwards college",
+        "jonathan edwards",
+        "edwards college"
+      ]
+    },
+    {
+      "code": "K",
+      "name": "Kirtland Hall",
+      "lat": 41.31191239059202,
+      "lng": -72.9245436430476,
+      "aliases": [
+        "k",
+        "kirtland hall",
+        "kirtland"
+      ]
+    },
+    {
+      "code": "KGL",
+      "name": "Kline Geology Laboratory",
+      "lat": 41.316610974869526,
+      "lng": -72.92108121170008,
+      "aliases": [
+        "kgl",
+        "kline geology laboratory",
+        "kline geology",
+        "geology laboratory"
+      ]
+    },
+    {
+      "code": "KRN",
+      "name": "Kroon Hall",
+      "lat": 41.31683377913966,
+      "lng": -72.923352568978,
+      "aliases": [
+        "krn",
+        "kroon hall",
+        "kroon"
+      ]
+    },
+    {
+      "code": "KT",
+      "name": "Kline Tower",
+      "lat": 41.31733979880856,
+      "lng": -72.92262953853638,
+      "aliases": [
+        "kt",
+        "kline tower",
+        "kline"
+      ]
+    },
+    {
+      "code": "LC",
+      "name": "Linsly-Chittenden Hall",
+      "lat": 41.30856943954275,
+      "lng": -72.92954435084826,
+      "aliases": [
+        "lc",
+        "linsly-chittenden hall",
+        "linsly-chittenden"
+      ]
+    },
+    {
+      "code": "LEIGH",
+      "name": "Leigh Hall (435 College)",
+      "lat": 41.3098589395874,
+      "lng": -72.92635751173479,
+      "aliases": [
+        "leigh",
+        "leigh hall (435 college)",
+        "(435 college)"
+      ]
+    },
+    {
+      "code": "LEPH",
+      "name": "Laboratory of EPH",
+      "lat": 41.30372782367011,
+      "lng": -72.9321293171798,
+      "aliases": [
+        "leph",
+        "laboratory of eph",
+        "of eph"
+      ]
+    },
+    {
+      "code": "LOM",
+      "name": "Leet Oliver Memorial Hall",
+      "lat": 41.312752584691566,
+      "lng": -72.92428419822936,
+      "aliases": [
+        "lom",
+        "leet oliver memorial hall",
+        "leet oliver memorial"
+      ]
+    },
+    {
+      "code": "LORIA",
+      "name": "Loria Center",
+      "lat": 41.30905037266603,
+      "lng": -72.93159478844005,
+      "aliases": [
+        "loria",
+        "loria center"
+      ]
+    },
+    {
+      "code": "LUCE",
+      "name": "Luce Hall",
+      "lat": 41.31444118256865,
+      "lng": -72.92428148295467,
+      "aliases": [
+        "luce",
+        "luce hall"
+      ]
+    },
+    {
+      "code": "MARSH",
+      "name": "Marsh Hall",
+      "lat": 41.32175571871907,
+      "lng": -72.92383040843467,
+      "aliases": [
+        "marsh",
+        "marsh hall"
+      ]
+    },
+    {
+      "code": "ML",
+      "name": "Mason Laboratory",
+      "lat": 41.31214322588976,
+      "lng": -72.92363391077251,
+      "aliases": [
+        "ml",
+        "mason laboratory",
+        "mason"
+      ]
+    },
+    {
+      "code": "MY",
+      "name": "Pauli Murray College",
+      "lat": 41.31547209560252,
+      "lng": -72.9248896887478,
+      "aliases": [
+        "my",
+        "pauli murray college",
+        "pauli murray",
+        "murray college"
+      ]
+    },
+    {
+      "code": "OML",
+      "name": "Osborn Memorial Laboratories",
+      "lat": 41.31667483178482,
+      "lng": -72.92389755178458,
+      "aliases": [
+        "oml",
+        "osborn memorial laboratories",
+        "osborn memorial",
+        "memorial laboratories"
+      ]
+    },
+    {
+      "code": "PC",
+      "name": "Pierson College",
+      "lat": 41.309913520554886,
+      "lng": -72.93263016398447,
+      "aliases": [
+        "pc",
+        "pierson college",
+        "pierson"
+      ]
+    },
+    {
+      "code": "PH",
+      "name": "Phelps Hall",
+      "lat": 41.3084401073642,
+      "lng": -72.92812577371706,
+      "aliases": [
+        "ph",
+        "phelps hall",
+        "phelps"
+      ]
+    },
+    {
+      "code": "PK205",
+      "name": "205 Park Street",
+      "lat": 41.30923576038897,
+      "lng": -72.93300627975854,
+      "aliases": [
+        "pk205",
+        "205 park street"
+      ]
+    },
+    {
+      "code": "PK217",
+      "name": "217 Park Street",
+      "lat": 41.30954060481991,
+      "lng": -72.93258054183886,
+      "aliases": [
+        "pk217",
+        "217 park street"
+      ]
+    },
+    {
+      "code": "PM",
+      "name": "Peabody Museum",
+      "lat": 41.316015726282124,
+      "lng": -72.9212179132204,
+      "aliases": [
+        "pm",
+        "peabody museum",
+        "peabody"
+      ]
+    },
+    {
+      "code": "PR135",
+      "name": "135 Prospect Street",
+      "lat": 41.315552242101425,
+      "lng": -72.92455581772359,
+      "aliases": [
+        "pr135",
+        "135 prospect street"
+      ]
+    },
+    {
+      "code": "PR204",
+      "name": "204 Prospect Street",
+      "lat": 41.31743096928777,
+      "lng": -72.924293894461,
+      "aliases": [
+        "pr204",
+        "204 prospect street"
+      ]
+    },
+    {
+      "code": "PR210",
+      "name": "210 Prospect Street",
+      "lat": 41.317591995182624,
+      "lng": -72.92429187353613,
+      "aliases": [
+        "pr210",
+        "210 prospect street"
+      ]
+    },
+    {
+      "code": "PR230",
+      "name": "230 Prospect Street",
+      "lat": 41.31814085437978,
+      "lng": -72.92412011294331,
+      "aliases": [
+        "pr230",
+        "230 prospect street"
+      ]
+    },
+    {
+      "code": "PR406",
+      "name": "406 Prospect St., Miller Hall",
+      "lat": 41.32317489692802,
+      "lng": -72.92376650673943,
+      "aliases": [
+        "pr406",
+        "406 prospect st miller hall",
+        "406 prospect st miller",
+        "miller hall"
+      ]
+    },
+    {
+      "code": "PR77",
+      "name": "77 Prospect Street",
+      "lat": 41.31408870463068,
+      "lng": -72.92455449253929,
+      "aliases": [
+        "pr77",
+        "77 prospect street"
+      ]
+    },
+    {
+      "code": "PWG",
+      "name": "Payne Whitney Gymnasium",
+      "lat": 41.313640570356974,
+      "lng": -72.93071260357006,
+      "aliases": [
+        "pwg",
+        "payne whitney gymnasium",
+        "payne whitney",
+        "whitney gymnasium"
+      ]
+    },
+    {
+      "code": "RDH",
+      "name": "Rudolph Hall",
+      "lat": 41.30879925898769,
+      "lng": -72.93188343572149,
+      "aliases": [
+        "rdh",
+        "rudolph hall",
+        "rudolph"
+      ]
+    },
+    {
+      "code": "RKZ",
+      "name": "Rosenkranz Hall",
+      "lat": 41.31444592077506,
+      "lng": -72.92447567969516,
+      "aliases": [
+        "rkz",
+        "rosenkranz hall",
+        "rosenkranz"
+      ]
+    },
+    {
+      "code": "S",
+      "name": "Sage Hall",
+      "lat": 41.3171661947107,
+      "lng": -72.92379864007869,
+      "aliases": [
+        "s",
+        "sage hall",
+        "sage"
+      ]
+    },
+    {
+      "code": "SA10",
+      "name": "10 Sachem Street",
+      "lat": 41.31528576861311,
+      "lng": -72.92163027868486,
+      "aliases": [
+        "sa10",
+        "10 sachem street"
+      ]
+    },
+    {
+      "code": "SB",
+      "name": "Sage-Bowers Hall",
+      "lat": 41.3171661947107,
+      "lng": -72.92379864007869,
+      "aliases": [
+        "sb",
+        "sage-bowers hall",
+        "sage-bowers"
+      ]
+    },
+    {
+      "code": "SCL",
+      "name": "Sterling Chemistry Laboratory",
+      "lat": 41.317978264710156,
+      "lng": -72.92303263556215,
+      "aliases": [
+        "scl",
+        "sterling chemistry laboratory",
+        "sterling chemistry",
+        "chemistry laboratory"
+      ]
+    },
+    {
+      "code": "SDQ",
+      "name": "Sterling Divinity Quadrangle",
+      "lat": 41.32379887151965,
+      "lng": -72.92190087515058,
+      "aliases": [
+        "sdq",
+        "sterling divinity quadrangle",
+        "divinity quadrangle"
+      ]
+    },
+    {
+      "code": "SHM",
+      "name": "Sterling Hall of Medicine",
+      "lat": 41.30324626399055,
+      "lng": -72.93385250191704,
+      "aliases": [
+        "shm",
+        "sterling hall of medicine",
+        "of medicine"
+      ]
+    },
+    {
+      "code": "SLB",
+      "name": "Sterling Law Buildings",
+      "lat": 41.31176014374529,
+      "lng": -72.92809061577384,
+      "aliases": [
+        "slb",
+        "sterling law buildings",
+        "law buildings"
+      ]
+    },
+    {
+      "code": "SM",
+      "name": "Silliman College",
+      "lat": 41.31135712639134,
+      "lng": -72.92538785456527,
+      "aliases": [
+        "sm",
+        "silliman college",
+        "silliman"
+      ]
+    },
+    {
+      "code": "SMH",
+      "name": "Sprague Memorial Hall",
+      "lat": 41.31069798974802,
+      "lng": -72.92645797167219,
+      "aliases": [
+        "smh",
+        "sprague memorial hall",
+        "sprague memorial"
+      ]
+    },
+    {
+      "code": "SML",
+      "name": "Sterling Memorial Library",
+      "lat": 41.311608169097696,
+      "lng": -72.92862577321647,
+      "aliases": [
+        "sml",
+        "sterling memorial library",
+        "sterling memorial",
+        "memorial library"
+      ]
+    },
+    {
+      "code": "SPL",
+      "name": "Sloane Physics Laboratory",
+      "lat": 41.317378317902175,
+      "lng": -72.92316571641554,
+      "aliases": [
+        "spl",
+        "sloane physics laboratory",
+        "sloane physics",
+        "physics laboratory"
+      ]
+    },
+    {
+      "code": "SSS",
+      "name": "Sheffield-Sterling-Strathcona",
+      "lat": 41.31190508394461,
+      "lng": -72.9252049975265,
+      "aliases": [
+        "sss",
+        "sheffield-sterling-strathcona"
+      ]
+    },
+    {
+      "code": "STOECK",
+      "name": "Stoeckel Hall (renovated)",
+      "lat": 41.31055225027703,
+      "lng": -72.92591734092855,
+      "aliases": [
+        "stoeck",
+        "stoeckel hall (renovated)",
+        "hall (renovated)"
+      ]
+    },
+    {
+      "code": "SY",
+      "name": "Saybrook College",
+      "lat": 41.31010556074961,
+      "lng": -72.92958499877143,
+      "aliases": [
+        "sy",
+        "saybrook college",
+        "saybrook"
+      ]
+    },
+    {
+      "code": "TAC",
+      "name": "The Anlyan Center",
+      "lat": 41.3014785345817,
+      "lng": -72.93393526133768,
+      "aliases": [
+        "tac",
+        "the anlyan center",
+        "the anlyan",
+        "anlyan center"
+      ]
+    },
+    {
+      "code": "TC",
+      "name": "Trumbull College",
+      "lat": 41.31064383037041,
+      "lng": -72.92932566506825,
+      "aliases": [
+        "tc",
+        "trumbull college",
+        "trumbull"
+      ]
+    },
+    {
+      "code": "TD",
+      "name": "Timothy Dwight College",
+      "lat": 41.31044794090983,
+      "lng": -72.92396982661847,
+      "aliases": [
+        "td",
+        "timothy dwight college",
+        "timothy dwight",
+        "dwight college"
+      ]
+    },
+    {
+      "code": "TM405",
+      "name": "405 Temple Street",
+      "lat": 41.31210301283801,
+      "lng": -72.92280203244057,
+      "aliases": [
+        "tm405",
+        "405 temple street"
+      ]
+    },
+    {
+      "code": "TM432",
+      "name": "432 Temple Street",
+      "lat": 41.31285711900506,
+      "lng": -72.92269011750255,
+      "aliases": [
+        "tm432",
+        "432 temple street"
+      ]
+    },
+    {
+      "code": "TRUM87",
+      "name": "87 Trumbull Street",
+      "lat": 41.31390901021341,
+      "lng": -72.92433596333984,
+      "aliases": [
+        "trum87",
+        "87 trumbull street",
+        "trumbull street"
+      ]
+    },
+    {
+      "code": "TSAI",
+      "name": "Tsai CITY",
+      "lat": 41.31248929464554,
+      "lng": -72.92488403257666,
+      "aliases": [
+        "tsai",
+        "tsai city"
+      ]
+    },
+    {
+      "code": "W-OCN",
+      "name": "WC Office Complex North",
+      "lat": 41.256075419630996,
+      "lng": -72.99284407885787,
+      "aliases": [
+        "w-ocn",
+        "wc office complex north",
+        "complex north"
+      ]
+    },
+    {
+      "code": "WALL53",
+      "name": "53 Wall Street",
+      "lat": 41.30994367147578,
+      "lng": -72.92350348397115,
+      "aliases": [
+        "wall53",
+        "53 wall street"
+      ]
+    },
+    {
+      "code": "WALL81",
+      "name": "81 Wall Street",
+      "lat": 41.31061129488212,
+      "lng": -72.92543310205883,
+      "aliases": [
+        "wall81",
+        "81 wall street"
+      ]
+    },
+    {
+      "code": "WALL82",
+      "name": "82-90 Wall St",
+      "lat": 41.3104574510191,
+      "lng": -72.92571685881107,
+      "aliases": [
+        "wall82",
+        "82-90 wall st",
+        "wall st"
+      ]
+    },
+    {
+      "code": "WH55",
+      "name": "55 Whitney Avenue",
+      "lat": 41.31201069168671,
+      "lng": -72.92196028162387,
+      "aliases": [
+        "wh55",
+        "55 whitney avenue",
+        "whitney avenue"
+      ]
+    },
+    {
+      "code": "WHC",
+      "name": "Whitney Humanities Center",
+      "lat": 41.31216503328449,
+      "lng": -72.92953517326309,
+      "aliases": [
+        "whc",
+        "whitney humanities center",
+        "whitney humanities",
+        "humanities center"
+      ]
+    },
+    {
+      "code": "WL",
+      "name": "Wright Lab",
+      "lat": 41.31904941017569,
+      "lng": -72.92085963421609,
+      "aliases": [
+        "wl",
+        "wright lab"
+      ]
+    },
+    {
+      "code": "WLH",
+      "name": "William L. Harkness Hall",
+      "lat": 41.310721783401405,
+      "lng": -72.92703544011228,
+      "aliases": [
+        "wlh",
+        "william l harkness hall",
+        "william l harkness",
+        "harkness hall"
+      ]
+    },
+    {
+      "code": "WTS",
+      "name": "Watson Center 60 Sachem Street",
+      "lat": 41.31581890171385,
+      "lng": -72.92377268569716,
+      "aliases": [
+        "wts",
+        "watson center 60 sachem street"
+      ]
+    },
+    {
+      "code": "YK149",
+      "name": "149 York Street",
+      "lat": 41.30763804515064,
+      "lng": -72.9316836581559,
+      "aliases": [
+        "yk149",
+        "149 york street"
+      ]
+    },
+    {
+      "code": "YK204",
+      "name": "204 York Street",
+      "lat": 41.309281123968894,
+      "lng": -72.93193267251384,
+      "aliases": [
+        "yk204",
+        "204 york street"
+      ]
+    },
+    {
+      "code": "YK212",
+      "name": "212 York Street",
+      "lat": 41.3095186830057,
+      "lng": -72.93211895768107,
+      "aliases": [
+        "yk212",
+        "212 york street"
+      ]
+    },
+    {
+      "code": "YK220",
+      "name": "220 York Street",
+      "lat": 41.30973882276757,
+      "lng": -72.93182818427775,
+      "aliases": [
+        "yk220",
+        "220 york street"
+      ]
+    },
+    {
+      "code": "YK222",
+      "name": "222 York Street",
+      "lat": 41.30975340625204,
+      "lng": -72.93126371951891,
+      "aliases": [
+        "yk222",
+        "222 york street"
+      ]
+    },
+    {
+      "code": "YSB",
+      "name": "Yale Science Building",
+      "lat": 41.31747572024573,
+      "lng": -72.92169079441668,
+      "aliases": [
+        "ysb",
+        "yale science building",
+        "yale science",
+        "science building"
+      ]
+    },
+    {
+      "code": "YUAG",
+      "name": "Yale University Art Gallery",
+      "lat": 41.308383948548745,
+      "lng": -72.93098131464414,
+      "aliases": [
+        "yuag",
+        "yale university art gallery",
+        "art gallery"
+      ]
+    }
+  ]
+}
