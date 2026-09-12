@@ -189,26 +189,21 @@ export function BrowseGallery() {
         const n = (box.left + box.width / 2 - mid) / width;
         const tiltY = n * 22;
         const rot = n * 3.2;
-        let scaleT = 1;
-        let liftT = 0;
-        if (hovered >= 0) {
-          if (index === hovered) {
-            scaleT = 1.06;
-            liftT = -15;
-          } else if (Math.abs(index - hovered) === 1) {
-            scaleT = 0.972;
-            liftT = 5;
-          }
-        }
+        const active = hovered === index;
+        const scaleT = active ? 1.06 : 1;
+        const liftT = active ? -15 : 0;
         const p = physicsRef.current[index];
         p.scaleV += ((scaleT - p.scale) * hoverK - p.scaleV * hoverD) * dt;
         p.liftV += ((liftT - p.lift) * hoverK - p.liftV * hoverD) * dt;
         p.scale += p.scaleV * dt;
         p.lift += p.liftV * dt;
         const rise = Math.max(0, (p.scale - 1) / 0.06);
-        card.style.transform = `translate3d(0, ${tiltY + p.lift}px, 0) rotate(${rot}deg) scale(${p.scale})`;
-        card.style.zIndex = index === hovered ? "4" : "1";
-        card.style.boxShadow = `0 ${10 * rise}px ${22 * rise}px rgba(28, 22, 16, ${0.22 * rise})`;
+        const visual = card.firstElementChild;
+        if (visual instanceof HTMLElement) {
+          visual.style.transform = `translate3d(0, ${tiltY + p.lift}px, 0) rotate(${rot}deg) scale(${p.scale})`;
+          visual.style.boxShadow = `0 ${10 * rise}px ${22 * rise}px rgba(28, 22, 16, ${0.22 * rise})`;
+        }
+        card.style.zIndex = active ? "4" : "1";
       });
     };
 
@@ -279,25 +274,31 @@ export function BrowseGallery() {
                   key={item.href}
                   href={item.href}
                   className={cn(
-                    "relative flex h-[22rem] shrink-0 flex-col justify-between overflow-visible p-6 origin-[center_70%] sm:h-[24rem] sm:p-7",
+                    "relative h-[22rem] shrink-0 sm:h-[24rem]",
                     item.width,
-                    item.tone,
                   )}
                 >
-                  <div className="flex items-start justify-between gap-3">
-                    <span className="font-heading text-sm tracking-tight opacity-70">
-                      {item.index}
+                  <span
+                    className={cn(
+                      "pointer-events-none absolute inset-0 flex flex-col justify-between overflow-visible p-6 origin-[center_70%] sm:p-7",
+                      item.tone,
+                    )}
+                  >
+                    <span className="flex items-start justify-between gap-3">
+                      <span className="font-heading text-sm tracking-tight opacity-70">
+                        {item.index}
+                      </span>
+                      <CardStamp mark={item.mark} />
                     </span>
-                    <CardStamp mark={item.mark} />
-                  </div>
-                  <div>
-                    <p className="font-heading pr-1 text-[2.15rem] leading-none tracking-tight whitespace-nowrap sm:text-[2.55rem]">
-                      {item.label}
-                    </p>
-                    <p className="mt-4 max-w-[12rem] text-sm leading-5 opacity-75">
-                      {item.caption}
-                    </p>
-                  </div>
+                    <span>
+                      <span className="font-heading pr-1 text-[2.15rem] leading-none tracking-tight whitespace-nowrap sm:text-[2.55rem]">
+                        {item.label}
+                      </span>
+                      <span className="mt-4 block max-w-[12rem] text-sm leading-5 opacity-75">
+                        {item.caption}
+                      </span>
+                    </span>
+                  </span>
                 </Link>
               ))}
             </div>
