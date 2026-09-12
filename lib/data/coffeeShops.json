@@ -2,7 +2,7 @@
   "provenance": {
     "source": "public business listings",
     "label": "New Haven coffee shops near campus",
-    "detail": "Street addresses are the businesses' published locations. Coordinates are geocodes of those addresses, not surveyed entrances. Seat counts are unknown — do not treat walkingMinutes here as capacity. Blue State Coffee closed permanently in November 2022; its former Wall Street and York Street cafes are now Common Grounds.",
+    "detail": "Street addresses are the businesses' published locations. Coordinates are OpenStreetMap geocodes of those addresses. Hours are listed only where verified from the business's public listing; seat counts are unknown. Blue State Coffee closed permanently in November 2022; its former Wall Street and York Street cafes are now Common Grounds.",
     "generatedAt": "2026-09-12T00:00:00.000Z"
   },
   "shops": [
@@ -21,7 +21,8 @@
         "outlets",
         "york street",
         "meetup"
-      ]
+      ],
+      "hours": "7am–9pm daily"
     },
     {
       "id": "atticus",
@@ -53,7 +54,8 @@
         "books",
         "chapel street",
         "meetup"
-      ]
+      ],
+      "hours": "Mon–Sat 9am–7pm, Sun 9am–5pm"
     },
     {
       "id": "willoughbys-church",
@@ -90,7 +92,7 @@
       "lat": 41.31038,
       "lng": -72.92558,
       "coordSource": "address",
-      "hours": "7am-9pm",
+      "hours": "7am–9pm daily",
       "description": "Campus coffee shop in the old Blue State spot, steps from Cross Campus and Bass. Big communal tables, plenty of outlets, loud during rush. Fine for a pair on laptops.",
       "tags": [
         "coffee",
@@ -110,7 +112,6 @@
       "lat": 41.30896,
       "lng": -72.93166,
       "coordSource": "address",
-      "hours": "7am-6pm",
       "description": "New Haven's roaster since 1985. Excellent pour-over, few seats and few outlets, so best for a quick caffeine stop or a short one-on-one meeting.",
       "tags": [
         "coffee",
@@ -129,7 +130,6 @@
       "lat": 41.3088,
       "lng": -72.9326,
       "coordSource": "address",
-      "hours": "6:30am-6pm",
       "description": "Hotel-lobby cafe inside the Graduate by Hilton with generous study seating, breakfast, and a calmer vibe than the student cafes. Reliable outlets.",
       "tags": [
         "coffee",
@@ -150,7 +150,6 @@
       "lat": 41.31195,
       "lng": -72.92222,
       "coordSource": "address",
-      "hours": "7am-3pm",
       "description": "New Haven-style bagel shop with a serious coffee program and cold brew. Quick and close to Hillhouse and Audubon; better for a breakfast meeting than a long session.",
       "tags": [
         "coffee",
@@ -170,7 +169,6 @@
       "lat": 41.30649,
       "lng": -72.93109,
       "coordSource": "address",
-      "hours": "8am-8pm",
       "description": "Bright specialty coffee and Arabic pastry cafe downtown with housemade chai. Welcoming for laptops, a few blocks south of Chapel.",
       "tags": [
         "coffee",
@@ -190,7 +188,6 @@
       "lat": 41.31126,
       "lng": -72.91975,
       "coordSource": "address",
-      "hours": "8am-midnight",
       "description": "Yemeni coffee house with spiced drinks and honey bread and a dedicated study-friendly room. Open late, near the Green and the Law School.",
       "tags": [
         "coffee",
@@ -210,7 +207,6 @@
       "lat": 41.3149,
       "lng": -72.91745,
       "coordSource": "address",
-      "hours": "7am-6pm",
       "description": "East Rock neighborhood cafe with pastries, sandwiches, and a loyal grad-student crowd. Longer walk from campus; quieter on weekday afternoons.",
       "tags": [
         "coffee",
@@ -229,7 +225,6 @@
       "lat": 41.31601,
       "lng": -72.90875,
       "coordSource": "address",
-      "hours": "7am-4pm",
       "description": "Specialty cafe east of downtown known for careful espresso and pour-over, welcoming to laptop workers. A real walk from central campus.",
       "tags": [
         "coffee",
@@ -248,7 +243,6 @@
       "lat": 41.30294,
       "lng": -72.92069,
       "coordSource": "address",
-      "hours": "8am-4pm",
       "description": "Wooster Square cafe next to Sally's with creative matcha drinks and breakfast. Cozy, small; better for a break than a marathon.",
       "tags": [
         "coffee",

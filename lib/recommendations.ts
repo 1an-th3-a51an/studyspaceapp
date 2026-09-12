@@ -192,9 +192,10 @@ export function recommendSpaces(
     return { ...spot, directionsUrl: dir, reason, access };
   };
 
+  // The tier decides the top pick; everything else is always listed soonest-ready first.
   const seen = new Set<string>([primary.name]);
   const rest: RankedSpot[] = [];
-  for (const spot of ranked) {
+  for (const spot of [...scored].sort(byReady)) {
     if (seen.has(spot.name)) continue;
     seen.add(spot.name);
     rest.push(decorate(spot));
