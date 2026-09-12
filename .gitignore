@@ -49,3 +49,6 @@ firebase-service-account*.json
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Firebase web config pulled from the project (keep out of git)
+lib/firebase/webConfig.generated.json

@@ -6,6 +6,7 @@ import {
   jsonError,
   normalizeNetId,
 } from "@/lib/server/liveStore";
+import { resolveActor } from "@/lib/server/auth";
 import { findSpot } from "@/lib/spots";
 import { PRIVATE_POOL_REASONS, type PrivatePoolReason } from "@/lib/types";
 
@@ -14,6 +15,7 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
 const NETID_RE = /^[a-z]{2,4}\d{1,5}$/i;
+const YALE_EMAIL_RE = /^[a-z0-9._%+-]+@yale\.edu$/i;
 const MAX_INVITEES = 8;
 const MAX_NOTE = 200;
 
@@ -24,14 +26,15 @@ function json(body: unknown, status = 200): Response {
 export async function GET(request: Request): Promise<Response> {
   try {
     const url = new URL(request.url);
-    const deviceId = url.searchParams.get("deviceId")?.trim() ?? "";
+    const rawDeviceId = url.searchParams.get("deviceId")?.trim() ?? "";
     const netId = normalizeNetId(url.searchParams.get("netId"));
-    if (!deviceId) return json({ error: "deviceId required" }, 400);
+    if (!rawDeviceId) return json({ error: "deviceId required" }, 400);
+    const actor = await resolveActor(request, rawDeviceId);
     const store = getLiveStore();
     const now = Date.now();
     await store.gc(now);
-    const pools = await store.listPrivatePools({ deviceId, netId, now });
-    return json({ serverTime: new Date(now).toISOString(), netId, pools });
+    const pools = await store.listPrivatePools({ deviceId: actor.deviceId, netId, email: actor.email, now });
+    return json({ serverTime: new Date(now).toISOString(), netId, signedInAs: actor.email ?? null, pools });
   } catch (error) {
     return jsonError(error);
   }
@@ -60,8 +63,10 @@ export async function POST(request: Request): Promise<Response> {
     } catch {
       return json({ error: "invalid json" }, 400);
     }
-    const deviceId = typeof body.deviceId === "string" ? body.deviceId.trim() : "";
-    if (!deviceId) return json({ error: "deviceId required" }, 400);
+    const rawDeviceId = typeof body.deviceId === "string" ? body.deviceId.trim() : "";
+    if (!rawDeviceId) return json({ error: "deviceId required" }, 400);
+    const actor = await resolveActor(request, rawDeviceId);
+    const deviceId = actor.deviceId;
 
     const store = getLiveStore();
     const now = Date.now();
@@ -70,18 +75,24 @@ export async function POST(request: Request): Promise<Response> {
     switch (body.action) {
       case "create": {
         const displayName = assertDisplayName(body.displayName ?? "");
-        const netId = normalizeNetId(body.netId);
-        if (!NETID_RE.test(netId)) return json({ error: "your NetID looks wrong (e.g. abc123)" }, 400);
+        const netId = normalizeNetId(body.netId) || actor.email || "";
+        if (!(NETID_RE.test(netId) || YALE_EMAIL_RE.test(netId))) {
+          return json({ error: "your NetID looks wrong (e.g. abc123), or sign in with Yale" }, 400);
+        }
         const raw = Array.isArray(body.inviteeNetIds) ? body.inviteeNetIds : [];
         const invitees = Array.from(
-          new Set(raw.map(normalizeNetId).filter((n) => n && n !== netId)),
+          new Set(
+            raw
+              .map((v: unknown) => (typeof v === "string" ? v.trim().toLowerCase() : ""))
+              .filter((n: string) => n && n !== netId && n !== actor.email),
+          ),
         );
-        if (invitees.length === 0) return json({ error: "invite at least one NetID" }, 400);
+        if (invitees.length === 0) return json({ error: "invite at least one NetID or yale.edu email" }, 400);
         if (invitees.length > MAX_INVITEES) {
           return json({ error: `invite at most ${MAX_INVITEES} people` }, 400);
         }
-        const bad = invitees.find((n) => !NETID_RE.test(n));
-        if (bad) return json({ error: `"${bad}" is not a NetID` }, 400);
+        const bad = invitees.find((n) => !(NETID_RE.test(n) || YALE_EMAIL_RE.test(n)));
+        if (bad) return json({ error: `"${bad}" is not a NetID or yale.edu email` }, 400);
         const reason = PRIVATE_POOL_REASONS.some((r) => r.value === body.reason)
           ? (body.reason as PrivatePoolReason)
           : "other";
@@ -109,14 +120,15 @@ export async function POST(request: Request): Promise<Response> {
       }
       case "respond": {
         const displayName = assertDisplayName(body.displayName ?? "");
-        const netId = normalizeNetId(body.netId);
+        const netId = normalizeNetId(body.netId) || actor.email || "";
         const poolId = typeof body.poolId === "string" ? body.poolId : "";
-        if (!netId) return json({ error: "netId required" }, 400);
+        if (!netId) return json({ error: "netId required (or sign in with Yale)" }, 400);
         if (!poolId) return json({ error: "poolId required" }, 400);
         const pool = await store.respondPrivatePool({
           deviceId,
           displayName,
           netId,
+          email: actor.email,
           poolId,
           accept: body.accept !== false,
           now,

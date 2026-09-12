@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { apiFetch } from "@/lib/hooks/apiFetch";
 import { ensureDeviceId } from "@/lib/identity";
 import type { QueueSnapshot, RoomBooking, StudyPool } from "@/lib/types";
 
@@ -15,7 +16,7 @@ async function readError(res: Response): Promise<string> {
 }
 
 async function post<T>(body: Record<string, unknown>): Promise<T> {
-  const res = await fetch("/api/queue", {
+  const res = await apiFetch("/api/queue", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ deviceId: ensureDeviceId(), ...body }),
@@ -82,7 +83,7 @@ export function useQueuePolling(
     const seq = ++requestSeq.current;
     try {
       const params = new URLSearchParams({ courseCode: code, deviceId: ensureDeviceId() });
-      const res = await fetch(`/api/queue?${params.toString()}`, { cache: "no-store" });
+      const res = await apiFetch(`/api/queue?${params.toString()}`, { cache: "no-store" });
       if (seq !== requestSeq.current) return;
       if (res.status === 404) {
         setAvailable(false);

@@ -45,11 +45,16 @@ export function privatePoolExpiry(input: { start?: string; createdAt: string }):
   return new Date(base).toISOString();
 }
 
-/** A private pool is visible to its host, its members, and anyone invited. */
-function canSeePrivatePool(pool: PrivatePool, deviceId: string, netId: string): boolean {
+/** A private pool is visible to its host, its members, and anyone invited (by NetID or Yale email). */
+function canSeePrivatePool(pool: PrivatePool, deviceId: string, netId: string, email?: string): boolean {
   if (pool.hostDeviceId === deviceId) return true;
   if (pool.members.some((m) => m.deviceId === deviceId)) return true;
-  return Boolean(netId) && pool.inviteeNetIds.includes(netId);
+  if (netId && pool.inviteeNetIds.includes(netId)) return true;
+  return Boolean(email) && pool.inviteeNetIds.includes(email!.toLowerCase());
+}
+
+function isInvited(pool: PrivatePool, netId: string, email?: string): boolean {
+  return pool.inviteeNetIds.includes(netId) || (Boolean(email) && pool.inviteeNetIds.includes(email!.toLowerCase()));
 }
 
 export type PoolOrigin = "demo" | "host" | "queue";
@@ -218,7 +223,7 @@ export type LiveStore = {
     now: number;
   }): Promise<QueueSnapshot & { released: boolean }>;
   /** Invite-only pools visible to this device / NetID. */
-  listPrivatePools(input: { deviceId: string; netId: string; now: number }): Promise<PrivatePool[]>;
+  listPrivatePools(input: { deviceId: string; netId: string; email?: string; now: number }): Promise<PrivatePool[]>;
   createPrivatePool(input: {
     deviceId: string;
     displayName: string;
@@ -236,6 +241,7 @@ export type LiveStore = {
     deviceId: string;
     displayName: string;
     netId: string;
+    email?: string;
     poolId: string;
     accept: boolean;
     now: number;
@@ -521,9 +527,9 @@ function createLocalStore(): LiveStore {
       const code = normalizeCourseCode(courseCode || found.courseCode);
       return { ...(await snapshot(code, deviceId, now)), released: true };
     },
-    async listPrivatePools({ deviceId, netId, now }) {
+    async listPrivatePools({ deviceId, netId, email, now }) {
       return state().privatePools
-        .filter((p) => Date.parse(p.expiresAt) > now && canSeePrivatePool(p, deviceId, netId))
+        .filter((p) => Date.parse(p.expiresAt) > now && canSeePrivatePool(p, deviceId, netId, email))
         .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
     },
     async createPrivatePool(input) {
@@ -549,10 +555,10 @@ function createLocalStore(): LiveStore {
       flush();
       return pool;
     },
-    async respondPrivatePool({ deviceId, displayName, netId, poolId, accept }) {
+    async respondPrivatePool({ deviceId, displayName, netId, email, poolId, accept }) {
       const pool = state().privatePools.find((p) => p.id === poolId);
       if (!pool) throw new HttpError(404, "private pool not found");
-      if (!pool.inviteeNetIds.includes(netId)) throw new HttpError(403, "not invited");
+      if (!isInvited(pool, netId, email)) throw new HttpError(403, "not invited");
       if (accept) {
         pool.declinedNetIds = pool.declinedNetIds.filter((n) => n !== netId);
         if (!pool.members.some((m) => m.deviceId === deviceId || m.netId === netId)) {
@@ -993,7 +999,7 @@ function createFirestoreStore(): LiveStore {
       const code = normalizeCourseCode(courseCode || booking.courseCode);
       return { ...(await snapshot(code, deviceId, now)), released: true };
     },
-    async listPrivatePools({ deviceId, netId, now }) {
+    async listPrivatePools({ deviceId, netId, email, now }) {
       const queries = [
         db.collection(COL_PRIVATE).where("hostDeviceId", "==", deviceId).get(),
         db.collection(COL_PRIVATE).where("memberDeviceIds", "array-contains", deviceId).get(),
@@ -1001,13 +1007,16 @@ function createFirestoreStore(): LiveStore {
       if (netId) {
         queries.push(db.collection(COL_PRIVATE).where("inviteeNetIds", "array-contains", netId).get());
       }
+      if (email) {
+        queries.push(db.collection(COL_PRIVATE).where("inviteeNetIds", "array-contains", email.toLowerCase()).get());
+      }
       const snaps = await Promise.all(queries);
       const byId = new Map<string, PrivatePool>();
       for (const qs of snaps) {
         for (const d of qs.docs) byId.set(d.id, asPrivatePool(d.id, d.data()));
       }
       return Array.from(byId.values())
-        .filter((p) => Date.parse(p.expiresAt) > now && canSeePrivatePool(p, deviceId, netId))
+        .filter((p) => Date.parse(p.expiresAt) > now && canSeePrivatePool(p, deviceId, netId, email))
         .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
     },
     async createPrivatePool(input) {
@@ -1035,13 +1044,13 @@ function createFirestoreStore(): LiveStore {
       await ref.set(compact({ ...data, memberDeviceIds: [input.deviceId] }));
       return pool;
     },
-    async respondPrivatePool({ deviceId, displayName, netId, poolId, accept }) {
+    async respondPrivatePool({ deviceId, displayName, netId, email, poolId, accept }) {
       const ref = db.collection(COL_PRIVATE).doc(poolId);
       return db.runTransaction(async (tx) => {
         const snap = await tx.get(ref);
         if (!snap.exists) throw new HttpError(404, "private pool not found");
         const pool = asPrivatePool(snap.id, snap.data()!);
-        if (!pool.inviteeNetIds.includes(netId)) throw new HttpError(403, "not invited");
+        if (!isInvited(pool, netId, email)) throw new HttpError(403, "not invited");
         if (accept) {
           pool.declinedNetIds = pool.declinedNetIds.filter((n) => n !== netId);
           if (!pool.members.some((m) => m.deviceId === deviceId || m.netId === netId)) {

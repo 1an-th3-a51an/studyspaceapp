@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { KarmaBadge } from "@/components/shared/KarmaBadge";
+import { SignInButton } from "@/components/shared/SignInButton";
 import { cn } from "@/lib/utils";
 
 const LINKS = [
@@ -46,6 +47,9 @@ export function SiteNav() {
           })}
           <span className="ml-1">
             <KarmaBadge />
+          </span>
+          <span className="ml-1">
+            <SignInButton />
           </span>
         </nav>
       </div>

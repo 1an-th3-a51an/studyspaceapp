@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { apiFetch } from "@/lib/hooks/apiFetch";
 import { ensureDeviceId } from "@/lib/identity";
 import type { PrivatePool, PrivatePoolReason } from "@/lib/types";
 
@@ -15,7 +16,7 @@ async function readError(res: Response): Promise<string> {
 }
 
 async function post<T>(body: Record<string, unknown>): Promise<T> {
-  const res = await fetch("/api/private-pools", {
+  const res = await apiFetch("/api/private-pools", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ deviceId: ensureDeviceId(), ...body }),
@@ -62,7 +63,7 @@ export function usePrivatePools(netId: string, intervalMs = 5000) {
     const mySeq = ++seq.current;
     try {
       const params = new URLSearchParams({ deviceId: ensureDeviceId(), netId });
-      const res = await fetch(`/api/private-pools?${params.toString()}`, { cache: "no-store" });
+      const res = await apiFetch(`/api/private-pools?${params.toString()}`, { cache: "no-store" });
       if (mySeq !== seq.current) return;
       if (res.status === 404) {
         setAvailable(false);

@@ -1,4 +1,5 @@
 import { normalizeCourseCode } from "@/lib/courseSimilarity";
+import { resolveActor } from "@/lib/server/auth";
 import {
   assertDisplayName,
   getLiveStore,
@@ -45,8 +46,9 @@ export async function POST(request: Request): Promise<Response> {
     } catch {
       return json({ error: "invalid json" }, 400);
     }
-    const deviceId = typeof body.deviceId === "string" ? body.deviceId.trim() : "";
-    if (!deviceId) return json({ error: "deviceId required" }, 400);
+    const rawDeviceId = typeof body.deviceId === "string" ? body.deviceId.trim() : "";
+    if (!rawDeviceId) return json({ error: "deviceId required" }, 400);
+    const deviceId = (await resolveActor(request, rawDeviceId)).deviceId;
 
     const store = getLiveStore();
     const now = Date.now();
