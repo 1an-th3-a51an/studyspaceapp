@@ -7,9 +7,9 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-  --font-heading: var(--font-geist-sans);
+  --font-sans: var(--font-bricolage);
+  --font-mono: ui-monospace, "Cascadia Code", "Segoe UI Mono", monospace;
+  --font-heading: var(--font-syne);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -49,72 +49,74 @@
 }
 
 :root {
-  --background: oklch(0.975 0.012 85);
-  --foreground: oklch(0.24 0.04 250);
-  --card: oklch(0.995 0.004 85);
-  --card-foreground: oklch(0.24 0.04 250);
-  --popover: oklch(0.995 0.004 85);
-  --popover-foreground: oklch(0.24 0.04 250);
-  --primary: oklch(0.33 0.09 250);
-  --primary-foreground: oklch(0.98 0.01 85);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
+  --background: oklch(0.84 0.028 78);
+  --foreground: oklch(0.22 0.03 48);
+  --card: oklch(0.9 0.02 82);
+  --card-foreground: oklch(0.22 0.03 48);
+  --popover: oklch(0.9 0.02 82);
+  --popover-foreground: oklch(0.22 0.03 48);
+  --primary: oklch(0.22 0.03 48);
+  --primary-foreground: oklch(0.93 0.02 82);
+  --secondary: oklch(0.78 0.03 78);
+  --secondary-foreground: oklch(0.22 0.03 48);
+  --muted: oklch(0.78 0.03 78);
+  --muted-foreground: oklch(0.4 0.025 55);
+  --accent: oklch(0.78 0.03 78);
+  --accent-foreground: oklch(0.22 0.03 48);
+  --destructive: oklch(0.55 0.16 28);
+  --border: oklch(0.72 0.03 75);
+  --input: oklch(0.72 0.03 75);
+  --ring: oklch(0.4 0.025 55);
   --chart-1: oklch(0.87 0 0);
   --chart-2: oklch(0.556 0 0);
   --chart-3: oklch(0.439 0 0);
   --chart-4: oklch(0.371 0 0);
   --chart-5: oklch(0.269 0 0);
-  --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  --radius: 0.2rem;
+  --sidebar: oklch(0.9 0.02 82);
+  --sidebar-foreground: oklch(0.22 0.03 48);
+  --sidebar-primary: oklch(0.22 0.03 48);
+  --sidebar-primary-foreground: oklch(0.93 0.02 82);
+  --sidebar-accent: oklch(0.78 0.03 78);
+  --sidebar-accent-foreground: oklch(0.22 0.03 48);
+  --sidebar-border: oklch(0.72 0.03 75);
+  --sidebar-ring: oklch(0.4 0.025 55);
+  --browse-tray: oklch(0.84 0.028 78);
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
+  --background: oklch(0.84 0.028 78);
+  --foreground: oklch(0.22 0.03 48);
+  --card: oklch(0.9 0.02 82);
+  --card-foreground: oklch(0.22 0.03 48);
+  --popover: oklch(0.9 0.02 82);
+  --popover-foreground: oklch(0.22 0.03 48);
+  --primary: oklch(0.22 0.03 48);
+  --primary-foreground: oklch(0.93 0.02 82);
+  --secondary: oklch(0.78 0.03 78);
+  --secondary-foreground: oklch(0.22 0.03 48);
+  --muted: oklch(0.78 0.03 78);
+  --muted-foreground: oklch(0.4 0.025 55);
+  --accent: oklch(0.78 0.03 78);
+  --accent-foreground: oklch(0.22 0.03 48);
+  --destructive: oklch(0.55 0.16 28);
+  --border: oklch(0.72 0.03 75);
+  --input: oklch(0.72 0.03 75);
+  --ring: oklch(0.4 0.025 55);
   --chart-1: oklch(0.87 0 0);
   --chart-2: oklch(0.556 0 0);
   --chart-3: oklch(0.439 0 0);
   --chart-4: oklch(0.371 0 0);
   --chart-5: oklch(0.269 0 0);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  --sidebar: oklch(0.9 0.02 82);
+  --sidebar-foreground: oklch(0.22 0.03 48);
+  --sidebar-primary: oklch(0.22 0.03 48);
+  --sidebar-primary-foreground: oklch(0.93 0.02 82);
+  --sidebar-accent: oklch(0.78 0.03 78);
+  --sidebar-accent-foreground: oklch(0.22 0.03 48);
+  --sidebar-border: oklch(0.72 0.03 75);
+  --sidebar-ring: oklch(0.4 0.025 55);
+  --browse-tray: oklch(0.84 0.028 78);
 }
 
 @layer base {
@@ -127,4 +129,91 @@
   html {
     @apply font-sans;
   }
+  h1,
+  h2,
+  h3,
+  .font-heading {
+    font-family: var(--font-heading), ui-sans-serif, system-ui, sans-serif;
+    font-weight: 800;
+    letter-spacing: -0.045em;
+    line-height: 0.95;
+  }
+}
+
+.browse-fade {
+  mask-image: linear-gradient(
+    to right,
+    transparent 0%,
+    black 8%,
+    black 92%,
+    transparent 100%
+  );
+  -webkit-mask-image: linear-gradient(
+    to right,
+    transparent 0%,
+    black 8%,
+    black 92%,
+    transparent 100%
+  );
+}
+
+.browse-edge {
+  pointer-events: none;
+  position: absolute;
+  inset-block: 0;
+  width: 4.5rem;
+  z-index: 2;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+.browse-edge-left {
+  left: 0;
+  background: linear-gradient(
+    to right,
+    var(--browse-tray) 8%,
+    color-mix(in oklch, var(--browse-tray) 50%, transparent) 50%,
+    transparent
+  );
+  mask-image: linear-gradient(to right, black 30%, transparent);
+  -webkit-mask-image: linear-gradient(to right, black 30%, transparent);
+}
+
+.browse-edge-right {
+  right: 0;
+  background: linear-gradient(
+    to left,
+    var(--browse-tray) 8%,
+    color-mix(in oklch, var(--browse-tray) 50%, transparent) 50%,
+    transparent
+  );
+  mask-image: linear-gradient(to left, black 30%, transparent);
+  -webkit-mask-image: linear-gradient(to left, black 30%, transparent);
+}
+
+@media (min-width: 640px) {
+  .browse-edge {
+    width: 7rem;
+  }
+}
+
+/* Keep Leaflet panes/controls inside the map, below the sticky header (z-50). */
+.leaflet-container {
+  z-index: 0;
+}
+.leaflet-pane,
+.leaflet-map-pane,
+.leaflet-tile-pane,
+.leaflet-overlay-pane,
+.leaflet-shadow-pane,
+.leaflet-marker-pane,
+.leaflet-tooltip-pane,
+.leaflet-popup-pane {
+  z-index: 1 !important;
+}
+.leaflet-control-container,
+.leaflet-top,
+.leaflet-bottom,
+.leaflet-control {
+  z-index: 2 !important;
 }

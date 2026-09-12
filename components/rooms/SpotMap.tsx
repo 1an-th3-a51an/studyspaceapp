@@ -129,10 +129,10 @@ export function SpotMap({
   }, []);
 
   return (
-    <div className="space-y-2">
+    <div className="relative z-0 isolate space-y-2">
       <div
         ref={containerRef}
-        className="h-72 w-full overflow-hidden rounded-xl border sm:h-96"
+        className="relative z-0 h-72 w-full overflow-hidden rounded-xl border sm:h-96 [&_.leaflet-container]:z-0 [&_.leaflet-pane]:!z-[1] [&_.leaflet-top]:!z-[2] [&_.leaflet-bottom]:!z-[2] [&_.leaflet-control]:!z-[2]"
         aria-label="Map of study spots"
       />
       <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
