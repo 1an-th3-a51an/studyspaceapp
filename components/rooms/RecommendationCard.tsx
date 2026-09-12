@@ -79,7 +79,9 @@ export function RecommendationCard({
         </div>
         <CardDescription className="flex flex-wrap items-center gap-x-3 gap-y-1">
           <span className="font-medium text-foreground">
-            {recommendation.walkingMinutes} min walk
+            {recommendation.walkingMinutes > 0
+              ? `${recommendation.walkingMinutes} min walk`
+              : "Walk time unknown"}
           </span>
           {typeof recommendation.readyInMinutes === "number" ? (
             <span

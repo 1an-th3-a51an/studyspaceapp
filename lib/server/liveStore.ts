@@ -94,6 +94,32 @@ export class HttpError extends Error {
   }
 }
 
+/** Hosted pools stay 1–4; booking capacity may be higher. */
+function poolSizeFromCapacity(capacity: number): 1 | 2 | 3 | 4 {
+  return Math.min(4, Math.max(1, Math.floor(capacity))) as 1 | 2 | 3 | 4;
+}
+
+function hostedPoolFromBooking(input: {
+  id: string;
+  deviceId: string;
+  courseCode: string;
+  hostDisplayName: string;
+  capacity: number;
+  now: number;
+}): PoolRecord {
+  return {
+    id: input.id,
+    courseCode: input.courseCode,
+    hostDisplayName: input.hostDisplayName,
+    targetGroupSize: poolSizeFromCapacity(input.capacity),
+    memberCount: 1,
+    isDemoSample: false,
+    createdAt: new Date(input.now).toISOString(),
+    memberDeviceIds: [input.deviceId],
+    origin: "host",
+  };
+}
+
 function publicPool(record: PoolRecord): StudyPool {
   const { memberDeviceIds: _ids, origin: _origin, ...pool } = record;
   void _ids;
@@ -189,7 +215,7 @@ export type LiveStore = {
     capacity: number;
     now: number;
     hostEmail?: string;
-  }): Promise<QueueSnapshot & { booking: RoomBooking }>;
+  }): Promise<QueueSnapshot & { booking: RoomBooking; pool: StudyPool }>;
   joinBooking(input: {
     deviceId: string;
     displayName: string;
@@ -427,8 +453,17 @@ function createLocalStore(): LiveStore {
       const s = state();
       booking.notified = await notifyBooking(booking, s.subscriptions, { hostEmail });
       s.bookings.unshift(booking);
+      const pool = hostedPoolFromBooking({
+        id: crypto.randomUUID(),
+        deviceId,
+        courseCode,
+        hostDisplayName: displayName,
+        capacity: ruling.capacity,
+        now,
+      });
+      s.pools.unshift(pool);
       flush();
-      return { ...(await snapshot(courseCode, deviceId, now)), booking };
+      return { ...(await snapshot(courseCode, deviceId, now)), booking, pool: publicPool(pool) };
     },
     async joinBooking({ deviceId, displayName, bookingId, courseCode, now }) {
       const booking = state().bookings.find((b) => b.id === bookingId);
@@ -890,8 +925,19 @@ function createFirestoreStore(): LiveStore {
       });
 
       const payload = compactDeep({ ...booking, id: undefined }) as Record<string, unknown>;
-      await ref.set(payload);
-      return { ...(await snapshot(courseCode, deviceId, now)), booking };
+      const poolRef = db.collection(COL_POOLS).doc();
+      const pool = hostedPoolFromBooking({
+        id: poolRef.id,
+        deviceId,
+        courseCode,
+        hostDisplayName: displayName,
+        capacity: ruling.capacity,
+        now,
+      });
+      const { id: _poolId, ...poolData } = pool;
+      void _poolId;
+      await Promise.all([ref.set(payload), poolRef.set(poolData)]);
+      return { ...(await snapshot(courseCode, deviceId, now)), booking, pool: publicPool(pool) };
     },
     async joinBooking({ deviceId, displayName, bookingId, courseCode, now }) {
       const ref = db.collection(COL_BOOKINGS).doc(bookingId);

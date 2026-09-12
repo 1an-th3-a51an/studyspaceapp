@@ -25,10 +25,10 @@ import { estimateActivity } from "@/lib/activity";
 import { formatWhen } from "@/lib/format";
 import { readTune } from "@/lib/tune";
 import {
-  DEFAULT_LANDMARK_ID,
   findBuilding,
   getBuilding,
   LANDMARK_IDS,
+  unplacedLocationMessage,
   type LatLng,
   type OriginChoice,
   type ResolvedOrigin,
@@ -184,29 +184,46 @@ export default function RoomsPage() {
   );
 
   const origin: ResolvedOrigin | null = useMemo(() => {
-    const fallback = getBuilding(DEFAULT_LANDMARK_ID)!;
     if (activeChoice.kind === "gps") {
       return gpsPoint
-        ? { label: "your location", detail: "GPS", point: gpsPoint }
+        ? { label: "your location", detail: "GPS", point: gpsPoint, placed: true }
         : null;
     }
     if (activeChoice.kind === "landmark") {
-      const b = getBuilding(activeChoice.id) ?? fallback;
-      return { label: b.name, detail: b.address, point: b.point };
+      const b = getBuilding(activeChoice.id);
+      if (!b) {
+        return {
+          label: activeChoice.id,
+          detail: unplacedLocationMessage(activeChoice.id),
+          point: null,
+          placed: false,
+        };
+      }
+      return { label: b.name, detail: b.address, point: b.point, placed: true };
     }
     if (anchorMeeting && anchorBuilding) {
       return {
         label: `${anchorMeeting.courseCode} at ${anchorBuilding.name}`,
         detail: `${formatWhen(anchorMeeting.start)} · ${anchorMeeting.location}`,
         point: anchorBuilding.point,
+        placed: true,
+      };
+    }
+    if (anchorMeeting) {
+      const query = anchorMeeting.location?.trim() || anchorMeeting.courseCode;
+      return {
+        label: `${anchorMeeting.courseCode}${anchorMeeting.location ? ` · ${anchorMeeting.location}` : ""}`,
+        detail: unplacedLocationMessage(query),
+        point: null,
+        placed: false,
       };
     }
     return {
-      label: fallback.name,
-      detail: anchorMeeting
-        ? `Could not place "${anchorMeeting.location ?? "unknown location"}" on the map; using ${fallback.name}`
-        : "No classes loaded; using a central landmark",
-      point: fallback.point,
+      label: "No starting room",
+      detail:
+        "No classes loaded. Pick GPS or a known landmark to rank by walking time. Unmapped rooms stay off the map — they are not pinned at Old Campus.",
+      point: null,
+      placed: false,
     };
   }, [activeChoice, gpsPoint, anchorMeeting, anchorBuilding]);
 
@@ -322,10 +339,10 @@ export default function RoomsPage() {
           Study spots
         </h1>
         <p className="text-sm text-muted-foreground">
-          Ranked by walking time from where you will be. The top reservable
-          room deep-links to its Yale page — Yale shows live availability
-          there. Then your class (and courses with similar catalog
-          descriptions) can hear about it on Pools.
+          Ranked by walking time when the starting room is in the building
+          database. The top reservable room deep-links to its Yale page —
+          Yale shows live availability there. Then your class (and courses
+          with similar catalog descriptions) can hear about it on Pools.
         </p>
       </div>
 
@@ -383,13 +400,27 @@ export default function RoomsPage() {
             </Button>
           ) : null}
         </div>
-        <p className="text-xs text-muted-foreground">
+        <p
+          className={
+            origin && !origin.placed
+              ? "text-xs text-destructive"
+              : "text-xs text-muted-foreground"
+          }
+        >
           {origin
             ? `${origin.label}${origin.detail ? ` — ${origin.detail}` : ""}`
             : gpsStatus === "error"
               ? gpsError
               : "Waiting for your location…"}
         </p>
+        {origin && !origin.placed ? (
+          <p className="text-xs text-muted-foreground">
+            Placement audit: this starting room is not in the database. Study
+            spots stay listed, but the map will not invent a pin at Phelps Gate
+            and walk times stay unknown until you pick GPS or a landmark.
+            Recheck codes with <code className="font-mono">npm run audit:placement</code>.
+          </p>
+        ) : null}
         {schedule.ready && schedule.courses.length === 0 ? (
           <p className="text-xs text-muted-foreground">
             <Link href="/connect" className="underline underline-offset-4">

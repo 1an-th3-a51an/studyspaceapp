@@ -145,13 +145,14 @@ export function BookAndAnnounceDialog({
         }).catch(() => undefined);
       }
 
+      const wantedSeats = resolveBookingCapacity(spot.name, Number(seats)).capacity;
       const result = await announceBooking({
         courseCode: resolvedCourse,
         displayName: name.trim(),
         spotName: spot.name,
         bookingUrl: yaleUrl ?? spot.bookingUrl,
         start: snapToGrid(startIso),
-        capacity: Number(seats),
+        capacity: wantedSeats,
       });
 
       const booking = result.booking;
@@ -210,7 +211,7 @@ export function BookAndAnnounceDialog({
               <SelectTrigger id="book-course" className="w-full">
                 <SelectValue placeholder="Pick a course" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent position="popper">
                 {courses.map((c) => (
                   <SelectItem key={c.courseCode} value={c.courseCode}>
                     {c.title && c.title !== c.courseCode
@@ -246,7 +247,7 @@ export function BookAndAnnounceDialog({
                 <SelectTrigger id="book-cap" className="w-full">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent position="popper">
                   {seatOptions.map((n) => (
                     <SelectItem key={n} value={String(n)}>
                       {n}

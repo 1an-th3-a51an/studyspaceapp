@@ -53,7 +53,9 @@ function withDistances(
   origin: LatLng | null,
 ): StudyRecommendation[] {
   return spots.map((spot) => {
-    if (!origin || !hasPoint(spot)) return { ...spot };
+    if (!origin || !hasPoint(spot)) {
+      return { ...spot, walkingMinutes: 0, distanceMeters: undefined };
+    }
     const to = { lat: spot.lat, lng: spot.lng };
     return {
       ...spot,
@@ -132,7 +134,10 @@ export function recommendSpaces(
   const byQuality = (a: Scored, b: Scored) =>
     b.quality - a.quality || a.readyInMinutes - b.readyInMinutes;
   let ranked: Scored[];
-  if (mode === "now") {
+  if (!origin) {
+    // No real start point: do not rank as if everyone were at Old Campus.
+    ranked = [...scored].sort(byQuality);
+  } else if (mode === "now") {
     ranked = [...scored].sort(byReady);
   } else {
     const inWindow = scored.filter((s) => s.readyInMinutes <= tier.waitMinutes).sort(byQuality);
@@ -164,13 +169,18 @@ export function recommendSpaces(
         ? directionsUrl(origin, { lat: spot.lat, lng: spot.lng })
         : undefined;
     const access = isBookable(spot) ? "reservable" : "walk-in";
-    const seat =
-      access === "reservable"
+    const seat = origin
+      ? access === "reservable"
         ? `next 15-min slot after a ${spot.walkingMinutes} min walk`
-        : `${spot.walkingMinutes} min walk, no booking`;
+        : `${spot.walkingMinutes} min walk, no booking`
+      : access === "reservable"
+        ? "next 15-min booking slot; walk time unknown because the starting room is not in the database"
+        : "walk-in; walk time unknown because the starting room is not in the database";
     let reason: string;
     if (spot === primary) {
-      if (nearestCoffee && spot === nearestCoffee) {
+      if (!origin) {
+        reason = `Ranked by room fit only (${seat})`;
+      } else if (nearestCoffee && spot === nearestCoffee) {
         reason = `Coffee shop ready in ${spot.readyInMinutes} min, within ${prefs.maxExtraWalkingMinutes} extra min of the nearest room`;
       } else if (mode === "now") {
         reason = `Soonest seat: ready in ${spot.readyInMinutes} min (${seat})`;
@@ -192,10 +202,10 @@ export function recommendSpaces(
     return { ...spot, directionsUrl: dir, reason, access };
   };
 
-  // The tier decides the top pick; everything else is always listed soonest-ready first.
+  // The tier decides the top pick; remaining spots follow readiness when we have an origin.
   const seen = new Set<string>([primary.name]);
   const rest: RankedSpot[] = [];
-  for (const spot of [...scored].sort(byReady)) {
+  for (const spot of [...scored].sort(origin ? byReady : byQuality)) {
     if (seen.has(spot.name)) continue;
     seen.add(spot.name);
     rest.push(decorate(spot));

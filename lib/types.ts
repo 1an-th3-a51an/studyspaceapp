@@ -61,7 +61,7 @@ export type GenerateIcsEvent = {
 export type StudyRecommendation = {
   kind: "coffee" | "room";
   name: string;
-  /** Minutes on foot from the chosen origin. Recomputed from lat/lng when present. */
+  /** Minutes on foot from a real origin. 0 means unknown — never a Phelps Gate default. */
   walkingMinutes: number;
   bookingUrl?: string;
   address?: string;

@@ -79,7 +79,11 @@ export function SpotMap({
           ? `<br/><a href="${spot.directionsUrl}" target="_blank" rel="noopener noreferrer">Walking directions</a>`
           : "";
         marker.bindPopup(
-          `<strong>${escapeHtml(spot.name)}</strong><br/>${spot.walkingMinutes} min walk` +
+          `<strong>${escapeHtml(spot.name)}</strong><br/>${
+            spot.walkingMinutes > 0
+              ? `${spot.walkingMinutes} min walk`
+              : "Walk time unknown (starting room is not in the database)"
+          }` +
             (isPrimary ? " · <em>recommended</em>" : "") +
             dir,
         );

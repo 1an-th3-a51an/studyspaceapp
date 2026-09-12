@@ -1,7 +1,6 @@
 import coffeeSnapshot from "@/lib/data/coffeeShops.json";
 import libcalSnapshot from "@/lib/data/libcalSpaces.json";
 import walkInSnapshot from "@/lib/data/walkInSpaces.json";
-import { DEFAULT_LANDMARK_ID, getBuilding, walkingMinutes } from "@/lib/geo";
 import type { StudyRecommendation } from "@/lib/types";
 
 /**
@@ -81,19 +80,18 @@ type CoffeeRow = {
   tags?: string[];
 };
 
-const campusOrigin = getBuilding(DEFAULT_LANDMARK_ID)!.point;
-
-function withDefaultWalk(
+/** Catalog walk times stay 0 until the recommender has a real origin. */
+function withUnknownWalk(
   spot: Omit<StudySpot, "walkingMinutes"> & { lat: number; lng: number },
 ): StudySpot {
   return {
     ...spot,
-    walkingMinutes: walkingMinutes(campusOrigin, { lat: spot.lat, lng: spot.lng }),
+    walkingMinutes: 0,
   };
 }
 
 function fromLibcal(row: LibcalSpaceRow): StudySpot {
-  return withDefaultWalk({
+  return withUnknownWalk({
     id: row.id,
     kind: row.kind,
     name: row.name,
@@ -114,7 +112,7 @@ function fromLibcal(row: LibcalSpaceRow): StudySpot {
 }
 
 function fromWalkIn(row: WalkInRow): StudySpot {
-  return withDefaultWalk({
+  return withUnknownWalk({
     id: row.id,
     kind: "room",
     name: row.name,
@@ -130,7 +128,7 @@ function fromWalkIn(row: WalkInRow): StudySpot {
 }
 
 function fromCoffee(row: CoffeeRow): StudySpot {
-  return withDefaultWalk({
+  return withUnknownWalk({
     id: row.id,
     kind: "coffee",
     name: row.name,

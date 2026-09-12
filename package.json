@@ -10,7 +10,8 @@
     "import:coursetable": "node scripts/import-coursetable.mjs --catalog scripts/fixtures/catalog-202603.json --term \"Fall 2026\"",
     "import:coursetable:live": "node scripts/import-coursetable.mjs --fetch 202603 --term \"Fall 2026\"",
     "import:libcal": "node scripts/import-libcal-spaces.mjs",
-    "test:libcal": "node scripts/test-libcal-slots.mjs"
+    "test:libcal": "node scripts/test-libcal-slots.mjs",
+    "audit:placement": "node scripts/audit-room-placement.mjs"
   },
   "dependencies": {
     "class-variance-authority": "^0.7.1",

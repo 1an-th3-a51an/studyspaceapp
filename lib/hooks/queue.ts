@@ -45,7 +45,7 @@ export function announceBooking(input: {
   start: string;
   capacity: number;
 }) {
-  return post<QueueSnapshot & { booking: RoomBooking }>({ action: "book", ...input });
+  return post<QueueSnapshot & { booking: RoomBooking; pool: StudyPool }>({ action: "book", ...input });
 }
 
 export function releaseBooking(input: { bookingId: string; courseCode: string }) {

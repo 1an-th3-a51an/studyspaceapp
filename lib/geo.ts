@@ -21,8 +21,14 @@ export type OriginChoice =
 export type ResolvedOrigin = {
   label: string;
   detail?: string;
-  point: LatLng;
+  /** Null when the starting room is not in the building database. */
+  point: LatLng | null;
+  placed: boolean;
 };
+
+export type LocationPlacement =
+  | { ok: true; building: Building }
+  | { ok: false; query: string };
 
 // Average campus walking pace and a detour factor for street grids
 // (straight-line distance under-counts real sidewalks).
@@ -36,7 +42,7 @@ export const BUILDINGS: Building[] = [
     name: "Davies Auditorium (Becton Center)",
     address: "15 Prospect St",
     point: { lat: 41.31267, lng: -72.92512 },
-    aliases: ["davies", "becton"],
+    aliases: ["davies", "becton", "bct"],
   },
   {
     id: "luce",
@@ -85,21 +91,30 @@ export const BUILDINGS: Building[] = [
     name: "Dunham Laboratory",
     address: "10 Hillhouse Ave",
     point: { lat: 41.31232, lng: -72.92454 },
-    aliases: ["dunham"],
+    aliases: ["dunham", "dl"],
   },
   {
     id: "mason",
     name: "Mason Laboratory",
     address: "9 Hillhouse Ave",
     point: { lat: 41.31216, lng: -72.92364 },
-    aliases: ["mason"],
+    aliases: ["mason", "ml"],
   },
   {
     id: "wlh",
     name: "William L. Harkness Hall",
     address: "100 Wall St",
-    point: { lat: 41.3109, lng: -72.9292 },
-    aliases: ["wlh", "harkness"],
+    // College & Wall, SE corner of Cross Campus — not High St / Sterling and not Phelps Gate.
+    point: { lat: 41.31083, lng: -72.92778 },
+    aliases: [
+      "william l. harkness",
+      "william l harkness",
+      "w. l. harkness",
+      "w.l. harkness",
+      "harkness hall",
+      "harkness",
+      "wlh",
+    ],
   },
   {
     id: "lc",
@@ -130,6 +145,27 @@ export const BUILDINGS: Building[] = [
     aliases: ["bass"],
   },
   {
+    id: "rosenkranz",
+    name: "Rosenkranz Hall",
+    address: "125 Prospect St",
+    point: { lat: 41.31385, lng: -72.92355 },
+    aliases: ["rosenkranz", "rkz"],
+  },
+  {
+    id: "haas",
+    name: "Haas Family Arts Library",
+    address: "180 York St",
+    point: { lat: 41.30877, lng: -72.93189 },
+    aliases: ["haas", "arts library"],
+  },
+  {
+    id: "marx",
+    name: "Marx Science and Social Science Library",
+    address: "219 Prospect St",
+    point: { lat: 41.31724, lng: -72.92255 },
+    aliases: ["marx", "csssi"],
+  },
+  {
     id: "old-campus",
     name: "Old Campus (Phelps Gate)",
     address: "344 College St",
@@ -150,6 +186,7 @@ export const LANDMARK_IDS = [
   "old-campus",
   "cross-campus",
   "sterling",
+  "wlh",
   "davies",
   "hq",
   "yuag",
@@ -164,14 +201,33 @@ export function getBuilding(id: string): Building | undefined {
 
 /** Match a free-text class location like "Davies Auditorium" or "HQ 107" to a building. */
 export function findBuilding(location: string | undefined): Building | undefined {
-  if (!location) return undefined;
-  const haystack = location.toLowerCase();
-  return BUILDINGS.find((b) =>
-    b.aliases.some((alias) => {
-      const escaped = alias.trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-      return new RegExp(`(^|[^a-z])${escaped}([^a-z]|$)`).test(haystack);
-    }),
-  );
+  const placed = placeLocation(location);
+  return placed.ok ? placed.building : undefined;
+}
+
+/** Look up a class/room string. Never invents a building if nothing matches. */
+export function placeLocation(location: string | undefined): LocationPlacement {
+  const query = location?.trim() ?? "";
+  if (!query) return { ok: false, query };
+  const haystack = query.toLowerCase();
+  let best: { building: Building; aliasLen: number } | undefined;
+  for (const building of BUILDINGS) {
+    for (const alias of building.aliases) {
+      const trimmed = alias.trim();
+      if (!trimmed) continue;
+      const escaped = trimmed.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      if (!new RegExp(`(^|[^a-z0-9])${escaped}([^a-z0-9]|$)`).test(haystack)) continue;
+      if (!best || trimmed.length > best.aliasLen) {
+        best = { building, aliasLen: trimmed.length };
+      }
+    }
+  }
+  return best ? { ok: true, building: best.building } : { ok: false, query };
+}
+
+export function unplacedLocationMessage(query: string): string {
+  const label = query.trim() || "this room";
+  return `"${label}" is not in the database — no map pin and no walking time until you pick GPS or a known landmark.`;
 }
 
 export function haversineMeters(a: LatLng, b: LatLng): number {

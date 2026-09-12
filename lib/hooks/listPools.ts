@@ -1,3 +1,4 @@
+import { apiFetch } from "@/lib/hooks/apiFetch";
 import { ensureDeviceId } from "@/lib/identity";
 import type { BackendInfo, StudyPool } from "@/lib/types";
 
@@ -12,7 +13,7 @@ async function readError(res: Response): Promise<string> {
 }
 
 async function post<T>(body: Record<string, unknown>): Promise<T> {
-  const res = await fetch("/api/pools", {
+  const res = await apiFetch("/api/pools", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ deviceId: ensureDeviceId(), ...body }),
@@ -26,7 +27,7 @@ export async function listPoolsByCourseCode(courseCode: string): Promise<{
   backend: BackendInfo | null;
 }> {
   const params = new URLSearchParams({ courseCode });
-  const res = await fetch(`/api/pools?${params.toString()}`, { cache: "no-store" });
+  const res = await apiFetch(`/api/pools?${params.toString()}`, { cache: "no-store" });
   if (!res.ok) throw new Error(await readError(res));
   const payload = (await res.json()) as { pools?: StudyPool[]; backend?: BackendInfo };
   return {
