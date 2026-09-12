@@ -75,24 +75,44 @@ function serviceAccount(): {
 let app: App | undefined;
 let db: Firestore | undefined;
 
-export function getFirestoreDb(): Firestore | null {
+export function getAdminApp(): App | null {
+  if (app) return app;
   if (!isFirebaseConfigured()) return null;
-  if (db) return db;
   const account = serviceAccount();
   if (!account) return null;
-  app =
-    getApps()[0] ??
-    initializeApp({
-      credential: cert({
+  try {
+    app =
+      getApps()[0] ??
+      initializeApp({
+        credential: cert({
+          projectId: account.projectId,
+          clientEmail: account.clientEmail,
+          privateKey: account.privateKey,
+        }),
         projectId: account.projectId,
-        clientEmail: account.clientEmail,
-        privateKey: account.privateKey,
-      }),
-      projectId: account.projectId,
-    });
-  db = getFirestore(app);
+      });
+    return app;
+  } catch (error) {
+    console.error(
+      "[studyspace] firebase admin init failed",
+      error instanceof Error ? error.message : error,
+    );
+    return null;
+  }
+}
+
+export function getFirestoreDb(): Firestore | null {
+  if (db) return db;
+  const adminApp = getAdminApp();
+  if (!adminApp) return null;
+  db = getFirestore(adminApp);
   // Optional fields (e.g. notified.detail) are legitimately undefined; drop them
-  // instead of failing the whole write.
-  db.settings({ ignoreUndefinedProperties: true });
+  // instead of failing the whole write. settings() throws if this isolate already
+  // configured the same Firestore instance (common on Vercel with shared apps).
+  try {
+    db.settings({ ignoreUndefinedProperties: true });
+  } catch {
+    /* already initialized */
+  }
   return db;
 }

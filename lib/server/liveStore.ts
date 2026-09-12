@@ -694,12 +694,21 @@ function createFirestoreStore(): LiveStore {
   };
 
   const gc = async (now: number) => {
-    const [poolSnap, queueSnap, bookingSnap, privateSnap] = await Promise.all([
-      db.collection(COL_POOLS).get(),
-      db.collection(COL_QUEUE).get(),
-      db.collection(COL_BOOKINGS).get(),
-      db.collection(COL_PRIVATE).get(),
-    ]);
+    let poolSnap, queueSnap, bookingSnap, privateSnap;
+    try {
+      [poolSnap, queueSnap, bookingSnap, privateSnap] = await Promise.all([
+        db.collection(COL_POOLS).get(),
+        db.collection(COL_QUEUE).get(),
+        db.collection(COL_BOOKINGS).get(),
+        db.collection(COL_PRIVATE).get(),
+      ]);
+    } catch (error) {
+      console.warn(
+        "[studyspace] Firestore gc skipped",
+        error instanceof Error ? error.message : error,
+      );
+      return;
+    }
     const livePoolIds = new Set<string>();
     const batchDeletes: DocumentReference[] = [];
     for (const doc of poolSnap.docs) {
@@ -1000,20 +1009,32 @@ function createFirestoreStore(): LiveStore {
       return { ...(await snapshot(code, deviceId, now)), released: true };
     },
     async listPrivatePools({ deviceId, netId, email, now }) {
-      const queries = [
-        db.collection(COL_PRIVATE).where("hostDeviceId", "==", deviceId).get(),
-        db.collection(COL_PRIVATE).where("memberDeviceIds", "array-contains", deviceId).get(),
-      ];
-      if (netId) {
-        queries.push(db.collection(COL_PRIVATE).where("inviteeNetIds", "array-contains", netId).get());
-      }
-      if (email) {
-        queries.push(db.collection(COL_PRIVATE).where("inviteeNetIds", "array-contains", email.toLowerCase()).get());
-      }
-      const snaps = await Promise.all(queries);
       const byId = new Map<string, PrivatePool>();
-      for (const qs of snaps) {
-        for (const d of qs.docs) byId.set(d.id, asPrivatePool(d.id, d.data()));
+      const ingest = (docs: { id: string; data: () => DocumentData }[]) => {
+        for (const d of docs) byId.set(d.id, asPrivatePool(d.id, d.data()));
+      };
+      try {
+        const queries = [
+          db.collection(COL_PRIVATE).where("hostDeviceId", "==", deviceId).get(),
+          db.collection(COL_PRIVATE).where("memberDeviceIds", "array-contains", deviceId).get(),
+        ];
+        if (netId) {
+          queries.push(db.collection(COL_PRIVATE).where("inviteeNetIds", "array-contains", netId).get());
+        }
+        if (email) {
+          queries.push(
+            db.collection(COL_PRIVATE).where("inviteeNetIds", "array-contains", email.toLowerCase()).get(),
+          );
+        }
+        for (const qs of await Promise.all(queries)) ingest(qs.docs);
+      } catch (error) {
+        // Missing single-field indexes or a cold project: scan instead of 500.
+        console.warn(
+          "[studyspace] private pool query failed, scanning collection",
+          error instanceof Error ? error.message : error,
+        );
+        const snap = await db.collection(COL_PRIVATE).get();
+        ingest(snap.docs);
       }
       return Array.from(byId.values())
         .filter((p) => Date.parse(p.expiresAt) > now && canSeePrivatePool(p, deviceId, netId, email))
@@ -1084,7 +1105,19 @@ let cached: LiveStore | undefined;
 
 export function getLiveStore(): LiveStore {
   if (cached) return cached;
-  cached = isFirebaseConfigured() ? createFirestoreStore() : createLocalStore();
+  if (isFirebaseConfigured()) {
+    try {
+      cached = createFirestoreStore();
+    } catch (error) {
+      console.error(
+        "[studyspace] Firestore store failed, using local fallback",
+        error instanceof Error ? error.message : error,
+      );
+      cached = createLocalStore();
+    }
+  } else {
+    cached = createLocalStore();
+  }
   return cached;
 }
 
@@ -1103,5 +1136,6 @@ export function jsonError(error: unknown): Response {
     return Response.json({ error: error.message }, { status: error.status });
   }
   const message = error instanceof Error ? error.message : "internal error";
+  console.error("[studyspace] api 500", message);
   return Response.json({ error: message }, { status: 500 });
 }

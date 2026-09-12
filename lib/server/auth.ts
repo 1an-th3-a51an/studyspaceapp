@@ -1,5 +1,4 @@
-import { getAuth } from "firebase-admin/auth";
-import { getFirestoreDb } from "@/lib/firebase/admin";
+import { getAdminApp, getFirestoreDb } from "@/lib/firebase/admin";
 import { ALLOWED_EMAIL_DOMAIN } from "@/lib/firebase/webConfig";
 
 /**
@@ -10,6 +9,10 @@ import { ALLOWED_EMAIL_DOMAIN } from "@/lib/firebase/webConfig";
  * uid instead of the anonymous deviceId, so pools, bookings, and invites
  * follow the person across laptops and phones. Without a token, nothing
  * changes: the deviceId model keeps working.
+ *
+ * firebase-admin/auth is loaded lazily: a top-level import of that path
+ * crashes the Vercel function at module load (empty 500) even when nobody
+ * is signed in.
  */
 export type Actor = {
   /** The identity key used by the store: uid when signed in, else deviceId. */
@@ -25,8 +28,11 @@ export async function resolveActor(request: Request, deviceId: string): Promise<
   if (!token) return { deviceId, signedIn: false };
   // Admin app is initialised by the Firestore getter; no Firestore means no Auth.
   if (!getFirestoreDb()) return { deviceId, signedIn: false };
+  const adminApp = getAdminApp();
+  if (!adminApp) return { deviceId, signedIn: false };
   try {
-    const decoded = await getAuth().verifyIdToken(token);
+    const { getAuth } = await import("firebase-admin/auth");
+    const decoded = await getAuth(adminApp).verifyIdToken(token);
     const email = decoded.email?.toLowerCase();
     if (!email || !email.endsWith(`@${ALLOWED_EMAIL_DOMAIN}`) || !decoded.email_verified) {
       return { deviceId, signedIn: false };
