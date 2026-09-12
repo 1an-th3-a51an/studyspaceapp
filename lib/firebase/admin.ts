@@ -91,5 +91,8 @@ export function getFirestoreDb(): Firestore | null {
       projectId: account.projectId,
     });
   db = getFirestore(app);
+  // Optional fields (e.g. notified.detail) are legitimately undefined; drop them
+  // instead of failing the whole write.
+  db.settings({ ignoreUndefinedProperties: true });
   return db;
 }
