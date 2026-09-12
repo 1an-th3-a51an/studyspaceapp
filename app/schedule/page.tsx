@@ -49,7 +49,6 @@ export default function SchedulePage() {
       </div>
       <ScheduleBoard
         meetings={schedule.meetings}
-        deadlines={schedule.deadlines}
         demo={schedule.origin === "demo"}
       />
     </div>

@@ -1,31 +1,35 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Bricolage_Grotesque, Syne } from "next/font/google";
 import { IdentityBoot } from "@/components/shared/IdentityBoot";
 import { JoinBanner } from "@/components/shared/JoinBanner";
 import { SiteNav } from "@/components/shared/SiteNav";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const syne = Syne({
   subsets: ["latin"],
+  display: "swap",
+  variable: "--font-syne",
+  weight: ["400", "600", "700", "800"],
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const bricolage = Bricolage_Grotesque({
   subsets: ["latin"],
+  display: "swap",
+  variable: "--font-bricolage",
+  weight: "variable",
 });
 
 export const metadata: Metadata = {
-  title: "StudySpace",
+  title: "YaleBooking",
   description:
-    "Merge CourseTable and Google Calendar, join study pools, and pick the nearest open Yale room.",
+    "Find a room nearby and people with the same hours. Import your calendar and we’ll match the open slots to a study space.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${syne.variable} ${bricolage.variable} h-full antialiased`}
     >
       <body className="flex min-h-full flex-col font-sans">
         <IdentityBoot />

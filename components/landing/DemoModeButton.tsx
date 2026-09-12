@@ -18,7 +18,7 @@ export function DemoModeButton() {
         router.push("/schedule");
       }}
     >
-      Handsome Dan Demo Mode
+      Try a demo
     </DebouncedSubmitButton>
   );
 }
