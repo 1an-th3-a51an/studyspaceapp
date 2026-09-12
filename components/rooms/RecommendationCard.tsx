@@ -1,4 +1,10 @@
-import { ExternalLink, MapPin, Megaphone, Navigation } from "lucide-react";
+import { ExternalLink, MapPin, Megaphone, Navigation, Timer } from "lucide-react";
+
+const slotTime = new Intl.DateTimeFormat("en-US", {
+  timeZone: "America/New_York",
+  hour: "numeric",
+  minute: "2-digit",
+});
 import { ActivityMeter } from "@/components/rooms/ActivityMeter";
 import type { ActivityEstimate } from "@/lib/activity";
 import { Button } from "@/components/ui/button";
@@ -75,6 +81,22 @@ export function RecommendationCard({
           <span className="font-medium text-foreground">
             {recommendation.walkingMinutes} min walk
           </span>
+          {typeof recommendation.readyInMinutes === "number" ? (
+            <span
+              className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary"
+              title={
+                recommendation.access === "reservable"
+                  ? "Walk time plus the wait for the next 15-minute booking slot"
+                  : "Walk time; no booking needed"
+              }
+            >
+              <Timer className="size-3" />
+              Ready in ~{recommendation.readyInMinutes} min
+              {recommendation.access === "reservable" && recommendation.readyAtIso
+                ? ` · slot ${slotTime.format(new Date(recommendation.readyAtIso))}`
+                : ""}
+            </span>
+          ) : null}
           {distance ? <span>{distance}</span> : null}
           {originLabel ? <span>from {originLabel}</span> : null}
           {activity ? <ActivityMeter estimate={activity} /> : null}

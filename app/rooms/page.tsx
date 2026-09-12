@@ -5,6 +5,7 @@ import Link from "next/link";
 import { LocateFixed } from "lucide-react";
 import { BookAndAnnounceDialog } from "@/components/rooms/BookAndAnnounceDialog";
 import { RecommendationCard, type CardMatch } from "@/components/rooms/RecommendationCard";
+import { UrgencyPicker } from "@/components/rooms/UrgencyPicker";
 import { SpaceSearchBox } from "@/components/rooms/SpaceSearchBox";
 import { SpotMap } from "@/components/rooms/SpotMap";
 import { Button } from "@/components/ui/button";
@@ -35,13 +36,14 @@ import {
 import { readJson, STORAGE_KEYS, writeJson } from "@/lib/identity";
 import { searchSpaces, type SearchMethod } from "@/lib/hooks/searchSpaces";
 import { useSchedule } from "@/lib/hooks/useSchedule";
-import { recommendSpaces, type RankedSpot } from "@/lib/recommendations";
+import { recommendSpaces, URGENCY_MODES, type RankedSpot, type UrgencyMode } from "@/lib/recommendations";
 import { matchedTags, type SpaceMatch } from "@/lib/spaceSearch";
 import { LIBCAL_GRID_MINUTES } from "@/lib/libcal";
 import { getRoomPrefs, setRoomPrefs } from "@/lib/scheduleStore";
 import type { ClassMeeting, MyCourse, RoomPrefs, StudyRecommendation } from "@/lib/types";
 
 const DEFAULT_ORIGIN: OriginChoice = { kind: "next-class" };
+const URGENCY_KEY = "studyspace.urgencyMode";
 
 function originToValue(choice: OriginChoice): string {
   if (choice.kind === "landmark") return `landmark:${choice.id}`;
@@ -97,6 +99,8 @@ export default function RoomsPage() {
   const [searchMethod, setSearchMethod] = useState<SearchMethod | null>(null);
   const [matches, setMatches] = useState<SpaceMatch[]>([]);
   const [booking, setBooking] = useState<StudyRecommendation | null>(null);
+  const [mode, setMode] = useState<UrgencyMode>("now");
+  const [groupSize, setGroupSize] = useState(1);
 
   const meetings = schedule.meetings;
   const isDemoData = schedule.origin === "demo";
@@ -106,8 +110,12 @@ export default function RoomsPage() {
       setPrefs(getRoomPrefs());
       setOriginChoice(readJson<OriginChoice>(STORAGE_KEYS.origin, DEFAULT_ORIGIN));
       setNow(Date.now());
+      const stored = localStorage.getItem(URGENCY_KEY);
+      if (stored === "now" || stored === "soon" || stored === "flexible") setMode(stored);
+      const tune = readTune();
+      if (tune.preferredGroupSize) setGroupSize(tune.preferredGroupSize);
       // Tune can prefill the search; the X in the box clears it.
-      const prefill = readTune().defaultQuery;
+      const prefill = tune.defaultQuery;
       if (prefill) {
         setQuery(prefill);
         setSearching(true);
@@ -202,10 +210,29 @@ export default function RoomsPage() {
     };
   }, [activeChoice, gpsPoint, anchorMeeting, anchorBuilding]);
 
-  const { primary, rest } = useMemo(
-    () => recommendSpaces(prefs, origin?.point ?? null),
-    [prefs, origin],
+  const recommendOptions = useMemo(
+    () => ({ mode, now: now || undefined, groupSize }),
+    [mode, now, groupSize],
   );
+  const { primary, rest } = useMemo(
+    () => recommendSpaces(prefs, origin?.point ?? null, undefined, recommendOptions),
+    [prefs, origin, recommendOptions],
+  );
+  // Top pick under every tier, so the picker can show the trade-off.
+  const tierPicks = useMemo(() => {
+    const out: Partial<Record<UrgencyMode, RankedSpot>> = {};
+    for (const tier of URGENCY_MODES) {
+      out[tier.mode] = recommendSpaces(prefs, origin?.point ?? null, undefined, {
+        ...recommendOptions,
+        mode: tier.mode,
+      }).primary;
+    }
+    return out;
+  }, [prefs, origin, recommendOptions]);
+  function chooseMode(next: UrgencyMode) {
+    setMode(next);
+    localStorage.setItem(URGENCY_KEY, next);
+  }
 
   const allSpots = useMemo(() => [primary, ...rest], [primary, rest]);
 
@@ -371,6 +398,11 @@ export default function RoomsPage() {
             to search for rooms near each of your classes.
           </p>
         ) : null}
+      </div>
+
+      <div className="space-y-2">
+        <Label>How soon do you need a seat?</Label>
+        <UrgencyPicker mode={mode} onChange={chooseMode} picks={tierPicks} />
       </div>
 
       <SpaceSearchBox

@@ -153,6 +153,15 @@ export function applyTune(text: string): { changes: TuneChange[]; prefs: TunePre
     changes.push({ label: "Start walking from", value: "next class" });
   }
 
+  // Urgency tier (Rooms page picker)
+  if (/\b(urgent|asap|right now|immediately|need a seat now|as soon as possible)\b/.test(q)) {
+    writeJson("studyspace.urgencyMode", "now");
+    changes.push({ label: "Urgency", value: "Urgent (soonest seat)" });
+  } else if (/\b(no rush|later|tonight|this evening|whenever|open to waiting|can wait)\b/.test(q)) {
+    writeJson("studyspace.urgencyMode", "flexible");
+    changes.push({ label: "Urgency", value: "Open to waiting (best room)" });
+  }
+
   // Search prefill
   const words = QUERY_WORDS.filter((w) => q.includes(w));
   if (!room.includeCoffeeShops) {

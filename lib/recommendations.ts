@@ -6,12 +6,41 @@ import {
   walkingMinutes,
   type LatLng,
 } from "@/lib/geo";
+import { LIBCAL_GRID_MINUTES } from "@/lib/libcal";
 import type { RoomPrefs, StudyRecommendation } from "@/lib/types";
+
+/**
+ * How soon the person needs a seat. Modeled on ride-hailing tiers: the
+ * cheapest-to-explain choice is "what gets me sitting down soonest", and the
+ * others trade a short wait for a better room.
+ */
+export type UrgencyMode = "now" | "soon" | "flexible";
+
+export const URGENCY_MODES: { mode: UrgencyMode; label: string; tagline: string; waitMinutes: number }[] = [
+  { mode: "now", label: "Urgent", tagline: "Sit down soonest. Nearest ready seat wins.", waitMinutes: 0 },
+  { mode: "soon", label: "Soon", tagline: "Best room that is ready within 30 min.", waitMinutes: 30 },
+  { mode: "flexible", label: "Open to waiting", tagline: "Best room, even if the slot is later.", waitMinutes: 90 },
+];
 
 export type RankedSpot = StudyRecommendation & {
   directionsUrl?: string;
   /** Why this spot was placed where it is. */
   reason: string;
+  /** Minutes until you could be sitting there: walk, plus the wait for the next grid slot if reservable. */
+  readyInMinutes: number;
+  /** ISO time you could be seated, when a start time is known. */
+  readyAtIso?: string;
+  access: "walk-in" | "reservable";
+  /** 0..n fit score used by the Soon / Open-to-waiting tiers. */
+  quality: number;
+};
+
+export type RecommendOptions = {
+  mode?: UrgencyMode;
+  /** Epoch ms; defaults to Date.now(). Pass from state so SSR and client agree. */
+  now?: number;
+  /** Seats the person wants; unknown capacity is not penalised. */
+  groupSize?: number;
 };
 
 export type Recommendation = {
@@ -38,6 +67,31 @@ function isBookable(spot: StudyRecommendation): boolean {
   return Boolean(spot.bookingUrl);
 }
 
+/** Minutes until seated: walk there, then (for reservable rooms) the next 15-minute grid boundary. */
+function readiness(spot: StudyRecommendation, now: number): { readyInMinutes: number; readyAtIso?: string } {
+  const walk = Math.max(0, spot.walkingMinutes);
+  if (!isBookable(spot)) return { readyInMinutes: walk, readyAtIso: new Date(now + walk * 60_000).toISOString() };
+  const stepMs = LIBCAL_GRID_MINUTES * 60_000;
+  const arrival = now + walk * 60_000;
+  const slot = Math.ceil(arrival / stepMs) * stepMs;
+  return { readyInMinutes: Math.ceil((slot - now) / 60_000), readyAtIso: new Date(slot).toISOString() };
+}
+
+function qualityScore(spot: StudyRecommendation, prefs: RoomPrefs, groupSize: number): number {
+  const tags = new Set((spot.tags ?? []).map((t) => t.toLowerCase()));
+  let q = 0;
+  if (isBookable(spot)) q += 2;
+  if (typeof spot.capacity === "number") {
+    q += spot.capacity >= groupSize ? 1 : -2;
+  }
+  if (tags.has("whiteboard") || tags.has("monitor") || tags.has("projector") || tags.has("blackboard")) q += 1;
+  if (tags.has("quiet") || tags.has("silent")) q += 0.5;
+  if (tags.has("outlets")) q += 0.25;
+  if (spot.kind === "coffee") q += prefs.includeCoffeeShops ? 0 : -3;
+  if (prefs.examUrgency >= 0.85 && spot.kind === "coffee") q -= 1;
+  return q;
+}
+
 /**
  * Pick where to study.
  *
@@ -50,59 +104,92 @@ export function recommendSpaces(
   prefs: RoomPrefs,
   origin: LatLng | null,
   spots: StudyRecommendation[] = STUDY_SPOTS,
+  options: RecommendOptions = {},
 ): Recommendation {
-  const ranked = withDistances(spots, origin).sort(
-    (a, b) =>
-      a.walkingMinutes - b.walkingMinutes ||
-      (a.distanceMeters ?? 0) - (b.distanceMeters ?? 0),
-  );
+  const mode: UrgencyMode = options.mode ?? "now";
+  const now = options.now ?? Date.now();
+  const groupSize = Math.max(1, options.groupSize ?? 1);
+  const tier = URGENCY_MODES.find((t) => t.mode === mode)!;
 
-  const rooms = ranked.filter((s) => s.kind === "room" && isBookable(s));
+  type Scored = StudyRecommendation & {
+    readyInMinutes: number;
+    readyAtIso?: string;
+    quality: number;
+  };
+  const scored: Scored[] = withDistances(spots, origin).map((s) => ({
+    ...s,
+    ...readiness(s, now),
+    quality: qualityScore(s, prefs, groupSize),
+  }));
+
+  // Tier ordering. "now": soonest seat. "soon": best fit among seats ready
+  // within the window, then everything else by readiness. "flexible": best
+  // fit within a long window, readiness as tiebreak.
+  const byReady = (a: Scored, b: Scored) =>
+    a.readyInMinutes - b.readyInMinutes ||
+    b.quality - a.quality ||
+    (a.distanceMeters ?? 0) - (b.distanceMeters ?? 0);
+  const byQuality = (a: Scored, b: Scored) =>
+    b.quality - a.quality || a.readyInMinutes - b.readyInMinutes;
+  let ranked: Scored[];
+  if (mode === "now") {
+    ranked = [...scored].sort(byReady);
+  } else {
+    const inWindow = scored.filter((s) => s.readyInMinutes <= tier.waitMinutes).sort(byQuality);
+    const later = scored.filter((s) => s.readyInMinutes > tier.waitMinutes).sort(byReady);
+    ranked = [...inWindow, ...later];
+  }
+
+  const rooms = ranked.filter((s) => s.kind === "room");
   const coffee = ranked.filter((s) => s.kind === "coffee");
 
   const nearestRoom = rooms[0];
   const coffeeBudget = nearestRoom
-    ? nearestRoom.walkingMinutes + prefs.maxExtraWalkingMinutes
+    ? nearestRoom.readyInMinutes + prefs.maxExtraWalkingMinutes
     : Number.POSITIVE_INFINITY;
   const coffeeAllowed = prefs.includeCoffeeShops && prefs.examUrgency < 0.85;
-  const nearestCoffee = coffeeAllowed
-    ? coffee.find((shop) => shop.walkingMinutes <= coffeeBudget)
-    : undefined;
+  const nearestCoffee =
+    coffeeAllowed && mode !== "flexible"
+      ? coffee.find((shop) => shop.readyInMinutes <= coffeeBudget)
+      : undefined;
 
   const primary = nearestCoffee ?? nearestRoom ?? ranked[0];
   if (!primary) {
     return { primary: decorateEmpty(), rest: [] };
   }
 
-  const decorate = (spot: StudyRecommendation): RankedSpot => {
+  const decorate = (spot: Scored): RankedSpot => {
     const dir =
       origin && hasPoint(spot)
         ? directionsUrl(origin, { lat: spot.lat, lng: spot.lng })
         : undefined;
+    const access = isBookable(spot) ? "reservable" : "walk-in";
+    const seat =
+      access === "reservable"
+        ? `next 15-min slot after a ${spot.walkingMinutes} min walk`
+        : `${spot.walkingMinutes} min walk, no booking`;
     let reason: string;
     if (spot === primary) {
       if (nearestCoffee && spot === nearestCoffee) {
-        reason = `Closest coffee shop within ${prefs.maxExtraWalkingMinutes} extra min of the nearest reservable room`;
-      } else if (isBookable(spot)) {
-        reason =
-          "Nearest reservable room — Yale shows live availability on their page";
+        reason = `Coffee shop ready in ${spot.readyInMinutes} min, within ${prefs.maxExtraWalkingMinutes} extra min of the nearest room`;
+      } else if (mode === "now") {
+        reason = `Soonest seat: ready in ${spot.readyInMinutes} min (${seat})`;
+      } else if (mode === "soon") {
+        reason = `Best fit ready within ${tier.waitMinutes} min (${seat})`;
       } else {
-        reason = "Nearest listed spot";
+        reason = `Best room if you can wait ${spot.readyInMinutes} min (${seat})`;
       }
     } else if (spot.kind === "coffee") {
       reason =
-        spot.walkingMinutes > coffeeBudget
+        spot.readyInMinutes > coffeeBudget
           ? `Over the walking budget (${Number.isFinite(coffeeBudget) ? coffeeBudget : "?"} min)`
           : "Coffee shop alternative";
-    } else if (isBookable(spot)) {
-      reason =
-        spot === nearestRoom
-          ? "Nearest reservable room — Yale shows live availability on their page"
-          : "Reservable room — Yale shows live availability on their page";
+    } else if (access === "reservable") {
+      reason = `Reservable, ready in ${spot.readyInMinutes} min — Yale shows live availability on their page`;
     } else {
-      reason = "Listed spot";
+      reason = `Walk-in, ready in ${spot.readyInMinutes} min`;
     }
-    return { ...spot, directionsUrl: dir, reason };
+    return { ...spot, directionsUrl: dir, reason, access };
   };
 
   const seen = new Set<string>([primary.name]);
@@ -122,5 +209,8 @@ function decorateEmpty(): RankedSpot {
     name: "No reservable rooms loaded",
     walkingMinutes: 0,
     reason: "Import Yale LibCal listings with npm run import:libcal",
+    readyInMinutes: 0,
+    access: "walk-in",
+    quality: 0,
   };
 }
